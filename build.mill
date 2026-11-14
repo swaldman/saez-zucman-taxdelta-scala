@@ -1,0 +1,41 @@
+//| mill-version: 1.3.1
+package build
+
+import mill.*
+import mill.scalalib.*
+import mill.scalajslib.*
+
+object Versions:
+  val scala   = "3.3.7"
+  val scalaJS = "1.20.1"
+  val upickle = "4.3.2"
+  val munit   = "1.1.1"
+  val laminar = "17.2.1"
+
+/** Common settings for modules that cross-build to the JVM and Scala.js.
+ *  Sources: `<module>/src` (shared), `<module>/src-jvm`, `<module>/src-js`. */
+trait Shared extends ScalaModule with PlatformScalaModule:
+  def scalaVersion = Versions.scala
+  def scalacOptions = Seq("-deprecation", "-feature", "-unchecked", "-Wunused:imports")
+
+trait SharedJS extends Shared with ScalaJSModule:
+  def scalaJSVersion = Versions.scalaJS
+
+trait SharedTests extends TestModule.Munit:
+  def mvnDeps = Seq(mvn"org.scalameta::munit::${Versions.munit}")
+
+/** The pure simulation engine. No IO, no reflection: JS-safe. */
+object core extends Module:
+  def generateWorksheets = Task:
+    import taxdelta.data.*
+    def write(cn : String, rp : String) = 
+      os.write(Task.dest / (cn +".scala"), FixtureSource.fromCsvResource("taxdelta.data",cn,rp).toString())
+    write("Sz2019Worksheet_databig","fixtures/sz2019/databig.csv")
+    PathRef(Task.dest)
+  object jvm extends Shared:
+    override def generatedSources = Task( super.generatedSources() :+ generateWorksheets() )
+    object test extends ScalaTests with SharedTests
+  object js extends SharedJS:
+    override def generatedSources = Task( super.generatedSources() :+ generateWorksheets() )
+    object test extends ScalaJSTests with SharedTests
+
