@@ -18,6 +18,16 @@ object ExcessCurve:
     require(thresholds.nonEmpty && thresholds.length == values.length, "thresholds/values mismatch")
     require(thresholds.indices.drop(1).forall(k => thresholds(k) > thresholds(k - 1)), s"thresholds must increase: $thresholds")
 
+    def imputeHigherBrackets( higherThresholds : IndexedSeq[Double], decliningWealthFactors : IndexedSeq[Double] ) : Default =
+      require(higherThresholds(0) > thresholds.last, s"imputed higher thresholds must be higher than the highest empirical threshold: thresholds ${thresholds}, higher thresholds ${higherThresholds}")
+      require(higherThresholds.nonEmpty && higherThresholds.length == decliningWealthFactors.length, "higher thresholds/declining wealth factors mismatch")
+      require(higherThresholds.indices.drop(1).forall(k => higherThresholds(k) > higherThresholds(k - 1)), s"imputed higher thresholds must increase: $thresholds")
+      require(decliningWealthFactors.indices.drop(1).forall(k => decliningWealthFactors(k) < decliningWealthFactors(k - 1)), s"declining wealth factors must decrease: $decliningWealthFactors")
+      require(decliningWealthFactors.forall(f => f >= 0 && f <= 1), s"declining wealth factors must be between 0 and 1: $decliningWealthFactors")
+      val base = values.last
+      val extraValues = decliningWealthFactors.map(_ * base)
+      Default(thresholds ++ higherThresholds, values ++ extraValues)
+
     override def excessFromThreshold(t: Double): Double =
       val n = thresholds.length
       if t <= thresholds(0) then values(0) // below the grid: no information, hold the first value

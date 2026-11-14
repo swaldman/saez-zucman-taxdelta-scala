@@ -1,32 +1,15 @@
 package taxdelta.model
 
-object SaezZucman2019Context extends ModelContext:
-  enum LPDouble extends Label:
-    case RealizedGainsTaxableShare // income stats exclude realized gains, but the tax base does in part include them
+object SaezZucman2019Context extends SaezZucman2019Labels:
 
-  enum LDInt extends Label:
-    case RealizedCapitalGains
-
-  enum LDExcessCurve extends Label:
-    case WealthExcessCurve
-
-  enum LLDouble extends Label:
-    case WealthTaxEvasionRate
-
-  enum LLSchedule extends Label:
-    case WealthTaxSchedule
-
-  enum LInstrument extends Label:
-    case WealthTax
-
-  import LPDouble.*, LDInt.*, LDExcessCurve.*, LLDouble.*, LLSchedule.*, LInstrument.*
-
-  override type LabelParameterDouble  = LPDouble
-  override type LabelDataInt          = LDInt
-  override type LabelDataExcessCurve  = LDExcessCurve
-  override type LabelLeverDouble      = LLDouble
-  override type LabelLeverSchedule    = LLSchedule
-  override type LabelInstrument       = LInstrument
+  /*
+   *  we only have data up to wealth > $1B, so we make some assumptions
+   *  we assume 90% of wealth over $1B also over $2.5B,
+   *  but only 60% of wealth over $1B is over $5B,
+   *  and only 45% of wealth over $1B is also over $10B.
+   */
+  val ImputedHigherBrackets = IndexedSeq[Double](2_500_000_000, 5_000_000_000, 10_000_000_000)
+  val ImputationFactors     = IndexedSeq[Double](0.9d, 0.6d, 0.45d)
 
   val parametersDouble = Map(
     RealizedGainsTaxableShare -> 0.366
@@ -35,7 +18,7 @@ object SaezZucman2019Context extends ModelContext:
     RealizedCapitalGains -> SaezZucman2019DataBridge.realizedGains
   )
   val dataExcessCurve = Map(
-    WealthExcessCurve -> SaezZucman2019DataBridge.wealthExcessCurves
+    WealthExcessCurve -> SaezZucman2019DataBridge.wealthExcessCurves.map( (k,v) => (k,v.imputeHigherBrackets(ImputedHigherBrackets,ImputationFactors)) )
   )
 
   object Baseline:

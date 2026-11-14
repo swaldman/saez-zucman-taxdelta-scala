@@ -33,11 +33,11 @@ object SaezZucman2019DataBridge:
 
   // this is fragile, we're relying on the ordering of the columns
   // but they are in fact known and fixed for now
-  private def wealthExcessCurveForGroup(g : Group) : ExcessCurve =
+  private def wealthExcessCurveForGroup(g : Group) : ExcessCurve.Default =
     val rowLabel = rowColValues(g)
     ExcessCurve.Default(DatabigWealthThresholds, Sz2019Worksheet_databig.header.filter(_.startsWith("wealth_")).map(c => Sz2019Worksheet_databig.doubleValue(rowLabel,c)))
 
-  lazy val wealthExcessCurves : Map[Group,ExcessCurve] = groups.toSeq.map( g => (g, wealthExcessCurveForGroup(g)) ).toMap
+  lazy val wealthExcessCurves : Map[Group,ExcessCurve.Default] = groups.toSeq.map( g => (g, wealthExcessCurveForGroup(g)) ).toMap
 
   private def realizedGainsForGroup(g : Group) : Int =
     val rowLabel = rowColValues(g)
