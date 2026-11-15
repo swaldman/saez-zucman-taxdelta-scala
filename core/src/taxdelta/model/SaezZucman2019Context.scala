@@ -72,7 +72,7 @@ object SaezZucman2019Context extends SaezZucman2019Labels:
 
   object Rebaser extends AverageIncomeRebaser:
     override def apply(g : Group, model : Model) = g.averageIncome + (model.parametersDouble(RealizedGainsTaxableShare) * model.dataInt(RealizedCapitalGains)(g))
-    override def requires : Set[Label] = Set(RealizedCapitalGains,RealizedGainsTaxableShare)
+    override def requires : Set[InputLabel] = Set(RealizedCapitalGains,RealizedGainsTaxableShare)
 
   import SaezZucman2019Instruments.*
 
