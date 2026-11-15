@@ -43,18 +43,13 @@ abstract class ModelContext:
   object Instrument:
     case class Result( baselineTaxRate : Double, reformedTaxRate : Double, deltaTaxRate : Double)
   trait Instrument extends Requirer:
-    def baselineTaxRate( model : Model )(g : Group) : Double
-    def reformedTaxRate( model : Model, counterfactual : Counterfactual )(g : Group) : Double
-    def run( model : Model, counterfactual : Counterfactual )(g : Group) : Instrument.Result =
-      val b = baselineTaxRate(model)(g)
-      val r = reformedTaxRate(model,counterfactual)(g)
+    def baselineTaxRate( model : Model )( prev : Map[LabelInstrument,Map[Group,Instrument.Result]] )(g : Group) : Double
+    def reformedTaxRate( model : Model, counterfactual : Counterfactual )( prev : Map[LabelInstrument,Map[Group,Instrument.Result]] )(g : Group) : Double
+    def run( model : Model, counterfactual : Counterfactual )( prev : Map[LabelInstrument,Map[Group,Instrument.Result]] )(g : Group) : Instrument.Result =
+      val b = baselineTaxRate(model)(prev)(g)
+      val r = reformedTaxRate(model,counterfactual)(prev)(g)
       val d = r - b
       Instrument.Result(b,r,d)
-
-  case class CompoundInstrument(instruments : Set[Instrument]) extends Instrument:
-    override def baselineTaxRate( model : Model )(g : Group)                                  : Double = instruments.foldLeft(0.0d)((accum,next) => accum + next.baselineTaxRate(model)(g))
-    override def reformedTaxRate( model : Model, counterfactual : Counterfactual )(g : Group) : Double = instruments.foldLeft(0.0d)((accum,next) => accum + next.reformedTaxRate(model,counterfactual)(g))
-    override def requires : Set[Label] = instruments.foldLeft(Set.empty[Label])((accum,next) => accum ++ next.requires)
 
   final case class Model(
     groups            : Groups,
@@ -70,17 +65,16 @@ abstract class ModelContext:
     leversBoolean     : Map[LabelLeverBoolean,Boolean]                   = Map.empty,
     leversSchedule    : Map[LabelLeverSchedule,Schedule]                 = Map.empty,
     rebaser           : AverageIncomeRebaser                             = AverageIncomeRebaser.DontRebase,
-    instruments       : Map[LabelInstrument,Instrument]                  = Map.empty
+    instruments       : List[Tuple2[LabelInstrument,Instrument]]         = List.empty
   ):
     val rebasedAverageIncome = groups.toSeq.map(g => (g, rebaser(g, this))).toMap
     val rebasedTotalIncome   = rebasedAverageIncome.map( (k,v) => (k, v * k.size) ).toMap
 
     def run( counterfactual : Counterfactual ) : Map[LabelInstrument,Map[Group,Instrument.Result]] =
-      val tups =
-        instruments.map: (label,instrument) =>
-          val results = groups.toSeq.map( g => (g, instrument.run(this,counterfactual)(g)) ).toMap
-          (label,results)
-      tups.toMap
+      instruments.foldLeft(Map.empty[LabelInstrument,Map[Group,Instrument.Result]]): (accum, next) =>
+        val (label,instrument) = next
+        val results = groups.toSeq.map(g => (g,instrument.run(this,counterfactual)(accum)(g))).toMap
+        accum + Tuple2(label,results)
 
     val requires : Set[Label] = rebaser.requires ++ instruments.flatMap( (k,v) => v.requires )
     val offers   : Set[Label] =
@@ -96,7 +90,14 @@ abstract class ModelContext:
       leversBoolean.keySet     ++
       leversSchedule.keySet
 
+    private lazy val duplicateInstrumentLabels : List[LabelInstrument] =
+      instruments.map( _(0) )
+        .groupMapReduce(identity)(_ => 1)(_ + _)
+        .collect { case (element, count) if count > 1 => element }
+        .toList
+
     require(requires.intersect(offers) == requires, "Missing required information: " + (requires -- offers))
+    require(duplicateInstrumentLabels.isEmpty, "Duplicate instrument labels declared: " + duplicateInstrumentLabels)
 
   final case class CounterfactualOrModel( counterfactual : Counterfactual, model : Model ):
     def double(l : LabelLeverDouble)     : Double   = counterfactual.leversDouble.getOrElse(l, model.leversDouble(l))

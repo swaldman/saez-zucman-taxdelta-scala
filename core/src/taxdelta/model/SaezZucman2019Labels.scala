@@ -1,10 +1,13 @@
 package taxdelta.model
 
 abstract class SaezZucman2019Labels extends ModelContext:
+  //enum LPBoolean extends Label:
+  //  case ImputeHigherWealthBracketsTopGroupOnly
+
   enum LPDouble extends Label:
     case AverageSalesTaxShareOfIncome
     case AverageValueAddedTaxableConsumptionShareOfIncome
-    case BehaviorallySensitiveShareOfTaxableConsumption
+    case ConsumerIncidenceShare
     case RealizedGainsTaxableShare // income stats exclude realized gains, but the tax base does in part include them
 
   enum LDDouble extends Label:
@@ -27,10 +30,12 @@ abstract class SaezZucman2019Labels extends ModelContext:
 
   enum LInstrument extends Label:
     case NationalIncomeTax
+    case ValueAddedTax
     case WealthTax
 
   export LPDouble.*, LDDouble.*, LDInt.*, LDExcessCurve.*, LLDouble.*, LLSchedule.*, LInstrument.*
 
+  //override type LabelParameterBoolean = LPBoolean
   override type LabelParameterDouble  = LPDouble
   override type LabelDataDouble       = LDDouble
   override type LabelDataInt          = LDInt
