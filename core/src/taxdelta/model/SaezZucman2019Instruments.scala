@@ -10,8 +10,8 @@ object SaezZucman2019Instruments:
       val afterEvasion = (1 - evasionRate) * taxesDue;
       afterEvasion / rebasedAverageIncome
     protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
-      val schedule = counterfactual.fold( model.leversSchedule(WealthTaxSchedule) )( _.orModel( model ).schedule(WealthTaxSchedule) )
-      val evasionRate = counterfactual.fold( model.leversDouble(WealthTaxEvasionRate) )( _.orModel( model ).double(WealthTaxEvasionRate) )
+      val schedule = model.orPrefer(counterfactual)(WealthTaxSchedule)
+      val evasionRate = model.orPrefer(counterfactual)(WealthTaxEvasionRate)
       computeTaxRate( schedule, model.dataExcessCurve(WealthExcessCurve)(g), evasionRate, model.rebasedAverageIncome(g) )
     override val requires = Set(WealthTaxSchedule,WealthExcessCurve,WealthTaxEvasionRate)
 
@@ -19,7 +19,7 @@ object SaezZucman2019Instruments:
     private def computeTaxRate( proposedNationalIncomeTaxRate : Double, nationalIncomeTaxBase : Double, rebasedAverageIncome : Double ) : Double =
       (proposedNationalIncomeTaxRate * nationalIncomeTaxBase) / rebasedAverageIncome
     protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
-      val nitRate = counterfactual.fold( model.leversDouble(NationalIncomeTaxRate) )( _.orModel( model ).double(NationalIncomeTaxRate) )
+      val nitRate = model.orPrefer(counterfactual)(NationalIncomeTaxRate)
       computeTaxRate( nitRate, model.dataInt(NationalIncomeTaxBase)(g), model.rebasedAverageIncome(g) )
     override val requires = Set(NationalIncomeTaxBase,NationalIncomeTaxRate)
 
@@ -31,7 +31,7 @@ object SaezZucman2019Instruments:
       val groupWeight = groupSpecificWeightingOfTaxableSales( groupSpecificSalesTaxShareOfIncome, averageSalesTaxShareOfIncome, consumerIncidenceShare )
       taxRateOnVatPurchases * averageValueAddedTaxableConsumptionShareOfIncome * groupWeight
     protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
-      val valueAddedTaxRate = counterfactual.fold(model.leversDouble(ValueAddedTaxRate))(_.orModel(model).double(ValueAddedTaxRate))
+      val valueAddedTaxRate = model.orPrefer(counterfactual)(ValueAddedTaxRate)
       val averageValueAddedTaxableConsumptionShareOfIncome = model.parametersDouble(AverageValueAddedTaxableConsumptionShareOfIncome)
       val groupSpecificSalesTaxShareOfIncome = model.dataDouble(SalesTaxShareOfIncome)(g)
       val averageSalesTaxShareOfIncome = model.parametersDouble(AverageSalesTaxShareOfIncome)

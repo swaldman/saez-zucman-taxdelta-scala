@@ -56,6 +56,13 @@ abstract class ModelContext:
       val d = r - b
       Instrument.Result(b,r,d)
 
+  final case class Counterfactual(
+    leversDouble     : Map[LabelLeverDouble,Double]     = Map.empty,
+    leversInt        : Map[LabelLeverInt,Int]           = Map.empty,
+    leversBoolean    : Map[LabelLeverBoolean,Boolean]   = Map.empty,
+    leversSchedule   : Map[LabelLeverSchedule,Schedule] = Map.empty,
+  )
+
   final case class Model(
     groups            : Groups,
     parametersDouble  : Map[LabelParameterDouble,Double]                 = Map.empty,
@@ -95,6 +102,11 @@ abstract class ModelContext:
       leversBoolean.keySet     ++
       leversSchedule.keySet
 
+    def orPrefer( counterfactual : Option[Counterfactual] )( lld : LabelLeverDouble )   : Double   = counterfactual.fold( this.leversDouble(lld) )( cf => cf.leversDouble.getOrElse(lld,this.leversDouble(lld)) )
+    def orPrefer( counterfactual : Option[Counterfactual] )( lli : LabelLeverInt )      : Int      = counterfactual.fold( this.leversInt(lli) )( cf => cf.leversInt.getOrElse(lli,this.leversInt(lli)) )
+    def orPrefer( counterfactual : Option[Counterfactual] )( llb : LabelLeverBoolean )  : Boolean  = counterfactual.fold( this.leversBoolean(llb) )( cf => cf.leversBoolean.getOrElse(llb,this.leversBoolean(llb)) )
+    def orPrefer( counterfactual : Option[Counterfactual] )( lls : LabelLeverSchedule ) : Schedule = counterfactual.fold( this.leversSchedule(lls) )( cf => cf.leversSchedule.getOrElse(lls,this.leversSchedule(lls)) )
+
     private lazy val duplicateInstrumentLabels : List[LabelInstrument] =
       instruments.map( _(0) )
         .groupMapReduce(identity)(_ => 1)(_ + _)
@@ -104,16 +116,3 @@ abstract class ModelContext:
     require(requires.intersect(offers) == requires, "Missing required information: " + (requires -- offers))
     require(duplicateInstrumentLabels.isEmpty, "Duplicate instrument labels declared: " + duplicateInstrumentLabels)
 
-  final case class CounterfactualOrModel( counterfactual : Counterfactual, model : Model ):
-    def double(l : LabelLeverDouble)     : Double   = counterfactual.leversDouble.getOrElse(l, model.leversDouble(l))
-    def int(l : LabelLeverInt)           : Int      = counterfactual.leversInt.getOrElse(l, model.leversInt(l))
-    def boolean(l : LabelLeverBoolean)   : Boolean  = counterfactual.leversBoolean.getOrElse(l, model.leversBoolean(l))
-    def schedule(l : LabelLeverSchedule) : Schedule = counterfactual.leversSchedule.getOrElse(l, model.leversSchedule(l))
-
-  final case class Counterfactual(
-    leversDouble     : Map[LabelLeverDouble,Double]     = Map.empty,
-    leversInt        : Map[LabelLeverInt,Int]           = Map.empty,
-    leversBoolean    : Map[LabelLeverBoolean,Boolean]   = Map.empty,
-    leversSchedule   : Map[LabelLeverSchedule,Schedule] = Map.empty,
-  ):
-    def orModel( model : Model ) = CounterfactualOrModel( this, model )
