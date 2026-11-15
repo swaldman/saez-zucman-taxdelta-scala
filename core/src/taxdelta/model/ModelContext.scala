@@ -42,6 +42,11 @@ abstract class ModelContext:
 
   object Instrument:
     case class Result( baselineTaxRate : Double, reformedTaxRate : Double, deltaTaxRate : Double)
+    trait Unified extends Instrument:
+      protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double
+      def baselineTaxRate( model : Model )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double = taxRate(model, None)(prev)(g)
+      def reformedTaxRate( model : Model, counterfactual : Counterfactual )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double = taxRate(model, Some(counterfactual))(prev)(g)
+
   trait Instrument extends Requirer:
     def baselineTaxRate( model : Model )( prev : Map[LabelInstrument,Map[Group,Instrument.Result]] )(g : Group) : Double
     def reformedTaxRate( model : Model, counterfactual : Counterfactual )( prev : Map[LabelInstrument,Map[Group,Instrument.Result]] )(g : Group) : Double
