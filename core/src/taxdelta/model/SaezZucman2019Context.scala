@@ -5,36 +5,46 @@ object SaezZucman2019Context extends SaezZucman2019Labels:
   /*
    *  we only have data up to wealth > $1B, so we make some assumptions
    *  we assume 90% of wealth over $1B also over $2.5B,
-   *  but only 60% of wealth over $1B is over $5B,
-   *  and only 45% of wealth over $1B is also over $10B.
+   *  but only  60% of wealth over $1B is over $5B,
+   *  and only  45% of wealth over $1B is also over $10B.
    */
   val ImputedHigherBrackets = IndexedSeq[Double](2_500_000_000, 5_000_000_000, 10_000_000_000)
   val ImputationFactors     = IndexedSeq[Double](0.9d, 0.6d, 0.45d)
 
   val parametersDouble = Map(
-    RealizedGainsTaxableShare -> 0.366
+    AverageSalesTaxShareOfIncome                     -> 0.04675733843078d, // from calculatorbig, F137
+    AverageValueAddedTaxableConsumptionShareOfIncome -> 0.4d,
+    BehaviorallySensitiveShareOfTaxableConsumption   -> 0.75d,
+    RealizedGainsTaxableShare                        -> 0.366d,
   )
+  val dataDouble = Map(
+    SalesTaxShareOfIncome -> SaezZucman2019DataBridge.salesTaxSharesOfIncome,
+  )
+
   val dataInt = Map(
-    RealizedCapitalGains -> SaezZucman2019DataBridge.realizedGains
+    NationalIncomeTaxBase -> SaezZucman2019DataBridge.nationalIncomeTaxBase,
+    RealizedCapitalGains  -> SaezZucman2019DataBridge.realizedGains,
   )
   val dataExcessCurve = Map(
-    WealthExcessCurve -> SaezZucman2019DataBridge.wealthExcessCurves.map( (k,v) => (k,v.imputeHigherBrackets(ImputedHigherBrackets,ImputationFactors)) )
+    WealthExcessCurve -> SaezZucman2019DataBridge.wealthExcessCurves.map((k,v) => (k,v.imputeHigherBrackets(ImputedHigherBrackets,ImputationFactors)))
   )
 
   object Baseline:
     val leversDouble = Map(
-      WealthTaxEvasionRate -> 0.15,
+      NationalIncomeTaxRate -> 0.0d,
+      ValueAddedTaxRate     -> 0.0d,
+      WealthTaxEvasionRate  -> 0.15d,
     )
     val leversSchedule = Map(
       WealthTaxSchedule -> Schedule.empty
     )
 
   val WarrenCounterfactual =
-    // the 0.005 & 0.0010 terms are a financial transactions tax awkwardly 
+    // the 0.005 & 0.0010 terms are a financial transactions tax awkwardly
     // modeled as part of the wealth tax.
     val warrenWealthTaxSchedule = Schedule(
-      IndexedSeq(0, 1_000_000, 50_000_000, 1_000_000_000),
-      IndexedSeq(0.0005, 0.0010, 0.0010 + 0.02, 0.0010 + 0.06)
+      IndexedSeq(     0,   1_000_000,      50_000_000,   1_000_000_000),
+      IndexedSeq(0.0005,      0.0010,   0.0010 + 0.02,   0.0010 + 0.06)
     )
     val leversDouble = Map(
       WealthTaxEvasionRate -> 0.15,
@@ -51,26 +61,19 @@ object SaezZucman2019Context extends SaezZucman2019Labels:
     override def apply(g : Group, model : Model) = g.averageIncome + (model.parametersDouble(RealizedGainsTaxableShare) * model.dataInt(RealizedCapitalGains)(g))
     override def requires : Set[Label] = Set(RealizedCapitalGains,RealizedGainsTaxableShare)
 
-  object WealthTaxInstrument extends Instrument:
-    def computeTaxRate( schedule : Schedule, excessCurve : ExcessCurve, evasionRate : Double, rebasedAverageIncome : Double ) : Double =
-      val taxesDue = schedule.averageTax( excessCurve );
-      val afterEvasion = (1 - evasionRate) * taxesDue;
-      afterEvasion / rebasedAverageIncome
-    def baselineTaxRate( model : Model )(g : Group) : Double =
-      computeTaxRate( model.leversSchedule(WealthTaxSchedule), model.dataExcessCurve(WealthExcessCurve)(g), model.leversDouble(WealthTaxEvasionRate), model.rebasedAverageIncome(g) )
-    def reformedTaxRate( model : Model, counterfactual : Counterfactual )(g : Group) : Double =
-      computeTaxRate( counterfactual.leversSchedule(WealthTaxSchedule), model.dataExcessCurve(WealthExcessCurve)(g), counterfactual.leversDouble(WealthTaxEvasionRate), model.rebasedAverageIncome(g) )
-    override val requires = Set(WealthTaxSchedule,WealthExcessCurve,WealthTaxEvasionRate)
+  import SaezZucman2019Instruments.*
 
   val model = Model(
     groups           = SaezZucman2019DataBridge.groups,
     rebaser          = Rebaser,
     parametersDouble = parametersDouble,
+    dataDouble       = dataDouble,
     dataInt          = dataInt,
     dataExcessCurve  = dataExcessCurve,
-    leversSchedule   = Baseline.leversSchedule,
     leversDouble     = Baseline.leversDouble,
-    instruments      = Map( WealthTax -> WealthTaxInstrument )
+    leversSchedule   = Baseline.leversSchedule,
+    instruments      = Map(
+                         NationalIncomeTax -> NationalIncomeTaxInstrument,
+                         WealthTax -> WealthTaxInstrument
+                       )
   )
-
-

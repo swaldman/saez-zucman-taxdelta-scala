@@ -98,9 +98,16 @@ abstract class ModelContext:
 
     require(requires.intersect(offers) == requires, "Missing required information: " + (requires -- offers))
 
+  final case class CounterfactualOrModel( counterfactual : Counterfactual, model : Model ):
+    def double(l : LabelLeverDouble)     : Double   = counterfactual.leversDouble.getOrElse(l, model.leversDouble(l))
+    def int(l : LabelLeverInt)           : Int      = counterfactual.leversInt.getOrElse(l, model.leversInt(l))
+    def boolean(l : LabelLeverBoolean)   : Boolean  = counterfactual.leversBoolean.getOrElse(l, model.leversBoolean(l))
+    def schedule(l : LabelLeverSchedule) : Schedule = counterfactual.leversSchedule.getOrElse(l, model.leversSchedule(l))
+
   final case class Counterfactual(
     leversDouble     : Map[LabelLeverDouble,Double]     = Map.empty,
     leversInt        : Map[LabelLeverInt,Int]           = Map.empty,
     leversBoolean    : Map[LabelLeverBoolean,Boolean]   = Map.empty,
     leversSchedule   : Map[LabelLeverSchedule,Schedule] = Map.empty,
-  )
+  ):
+    def orModel( model : Model ) = CounterfactualOrModel( this, model )

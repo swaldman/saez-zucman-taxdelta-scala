@@ -5,7 +5,7 @@ import taxdelta.data.Sz2019Worksheet_databig
 import scala.collection.immutable
 
 object SaezZucman2019DataBridge:
-  lazy val (groups : Groups, rowColValues : Map[Group,String] ) = 
+  lazy val (groups : Groups, rowColValues : Map[Group,String] ) =
     val percentileGroups = immutable.SortedSet.newBuilder[PercentileGroup]
     val topGroups = Seq.newBuilder[TopGroup]
     val rowCols = Map.newBuilder[Group,String]
@@ -32,6 +32,7 @@ object SaezZucman2019DataBridge:
   private val DatabigWealthThresholds = IndexedSeq[Double](0, 1_000_000, 2_500_000, 5_000_000, 10_000_000, 25_000_000, 50_000_000, 100_000_000, 250_000_000, 500_000_000, 1_000_000_000)
 
   // this is fragile, we're relying on the ordering of the columns
+  // and that they match DatabigWealthThresholds
   // but they are in fact known and fixed for now
   private def wealthExcessCurveForGroup(g : Group) : ExcessCurve.Default =
     val rowLabel = rowColValues(g)
@@ -39,9 +40,17 @@ object SaezZucman2019DataBridge:
 
   lazy val wealthExcessCurves : Map[Group,ExcessCurve.Default] = groups.toSeq.map( g => (g, wealthExcessCurveForGroup(g)) ).toMap
 
-  private def realizedGainsForGroup(g : Group) : Int =
+  private def intItemsForGroup(g : Group, colHeader : String) : Int =
     val rowLabel = rowColValues(g)
-    Sz2019Worksheet_databig.value(rowLabel,"fikgi").toInt
+    Sz2019Worksheet_databig.value(rowLabel,colHeader).toInt
 
-  lazy val realizedGains : Map[Group,Int] = groups.toSeq.map( g => (g, realizedGainsForGroup(g)) ).toMap
+  private def realizedGainsForGroup(g : Group) : Int = intItemsForGroup(g, "fikgi")
+  private def nationalIncomeTaxBaseForGroup(g : Group) : Int = intItemsForGroup(g, "nitaxbase")
 
+  private def salesTaxShareOfIncomeForGroup(g : Group) : Double =
+    val rowLabel = rowColValues(g)
+    Sz2019Worksheet_databig.doubleValue(rowLabel,"salestax")
+
+  lazy val realizedGains          : Map[Group,Int]    = groups.toSeq.map( g => (g, realizedGainsForGroup(g)) ).toMap
+  lazy val nationalIncomeTaxBase  : Map[Group,Int]    = groups.toSeq.map( g => (g, nationalIncomeTaxBaseForGroup(g)) ).toMap
+  lazy val salesTaxSharesOfIncome : Map[Group,Double] = groups.toSeq.map( g => (g, salesTaxShareOfIncomeForGroup(g)) ).toMap
