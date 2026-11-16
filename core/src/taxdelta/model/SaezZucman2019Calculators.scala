@@ -8,6 +8,57 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
     override def apply(g : Group, model : Model) = g.averageIncome + (model.parametersDouble(RealizedGainsTaxableShare) * model.dataInt(RealizedCapitalGains)(g))
     override def requires : Set[InputLabel] = Set(RealizedCapitalGains,RealizedGainsTaxableShare)
 
+  object CorporateTaxInstrument extends Instrument.Unified:
+    private def computeTaxRate(
+      computedNationalIncomeTaxRateForGroup               : Double,
+      computedValueAddedTaxRateForGroup                   : Double,
+      corporateTaxCurrentDomesticProfits                  : Double,
+      corporateTaxCurrentDomesticReceipts                 : Double,
+      corporateTaxCurrentForeignReceipts                  : Double,
+      corporateTaxForeignReceiptsUnderStrongerEnforcement : Double,
+      corporateTaxDeployStrongerEnforcement               : Boolean,
+      corporateTaxProposedEffectiveRate                   : Double,
+      corporateTaxShareOfIncome                           : Double
+    ) : Double =
+      val currentTotalReceipts   = corporateTaxCurrentDomesticReceipts + corporateTaxCurrentForeignReceipts
+      val potentialTotalReceipts =
+        val foreignReceipts = if corporateTaxDeployStrongerEnforcement then corporateTaxForeignReceiptsUnderStrongerEnforcement else corporateTaxCurrentForeignReceipts
+        (corporateTaxCurrentDomesticProfits * corporateTaxProposedEffectiveRate) + foreignReceipts
+      val crowdOutFactor = (1 - computedNationalIncomeTaxRateForGroup - computedValueAddedTaxRateForGroup)
+      val proposalAdjustmentFactor = potentialTotalReceipts / currentTotalReceipts
+      crowdOutFactor * proposalAdjustmentFactor * corporateTaxShareOfIncome
+    protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
+      val computedNationalIncomeTaxRateForGroup               = prev(NationalIncomeTax)( g ).taxRateUnder(counterfactual)
+      val computedValueAddedTaxRateForGroup                   = prev(ValueAddedTax)( g ).taxRateUnder(counterfactual)
+      val corporateTaxCurrentDomesticProfits                  = model.parametersDouble(CorporateTaxCurrentDomesticProfits)
+      val corporateTaxCurrentDomesticReceipts                 = model.parametersDouble(CorporateTaxCurrentDomesticReceipts)
+      val corporateTaxCurrentForeignReceipts                  = model.parametersDouble(CorporateTaxCurrentForeignReceipts)
+      val corporateTaxForeignReceiptsUnderStrongerEnforcement = model.parametersDouble(CorporateTaxForeignReceiptsUnderStrongerEnforcement)
+      val corporateTaxDeployStrongerEnforcement               = model.orPrefer( counterfactual )(CorporateTaxDeployStrongerEnforcement)
+      val corporateTaxProposedEffectiveRate                   = model.orPrefer( counterfactual )(CorporateTaxProposedEffectiveRate)
+      val corporateTaxShareOfIncome                           = model.dataDouble(CorporateTaxShareOfIncome)( g )
+      computeTaxRate(
+        computedNationalIncomeTaxRateForGroup,
+        computedValueAddedTaxRateForGroup,
+        corporateTaxCurrentDomesticProfits,
+        corporateTaxCurrentDomesticReceipts,
+        corporateTaxCurrentForeignReceipts,
+        corporateTaxForeignReceiptsUnderStrongerEnforcement,
+        corporateTaxDeployStrongerEnforcement,
+        corporateTaxProposedEffectiveRate,
+        corporateTaxShareOfIncome
+      )
+    override val requires = Set(
+      CorporateTaxCurrentDomesticProfits,
+      CorporateTaxCurrentDomesticReceipts,
+      CorporateTaxCurrentForeignReceipts,
+      CorporateTaxForeignReceiptsUnderStrongerEnforcement,
+      CorporateTaxDeployStrongerEnforcement,
+      CorporateTaxProposedEffectiveRate,
+      CorporateTaxShareOfIncome
+    )
+    override val depends  = Set(NationalIncomeTax,ValueAddedTax)
+
   object EstateTaxInstrument extends Instrument.Unified:
     private def computeTaxRate( estateTaxShareOfIncome : Double, estateTaxCurrentStatutoryTopRate : Double, estateTaxProposedTopRate : Double, estateTaxCurrentAvoidanceRate : Double, estateTaxAnticipatedAvoidanceRate : Double ) : Double =
       val adjustmentFactorNewTopRate       = estateTaxProposedTopRate / estateTaxCurrentStatutoryTopRate
@@ -55,16 +106,16 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
     override val requires = Set(NationalIncomeTaxBase,NationalIncomeTaxRate)
 
   object PayrollTaxInstrument extends Instrument.Unified:
-    private def computeTaxRate( 
-      employerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax : Boolean, 
-      payrollTaxShareOfIncome : Double, 
-      employerShareOfPrivateHealthPremiums : Double, 
-      employerSponsoredPrivateHealthPremiumsAsTaxRate : Double 
+    private def computeTaxRate(
+      employerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax : Boolean,
+      payrollTaxShareOfIncome : Double,
+      employerShareOfPrivateHealthPremiums : Double,
+      employerSponsoredPrivateHealthPremiumsAsTaxRate : Double
     ) : Double =
       val extra =
-        if employerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax then 
-          (employerShareOfPrivateHealthPremiums * employerSponsoredPrivateHealthPremiumsAsTaxRate) 
-        else 
+        if employerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax then
+          (employerShareOfPrivateHealthPremiums * employerSponsoredPrivateHealthPremiumsAsTaxRate)
+        else
           0
       payrollTaxShareOfIncome + extra
     protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =

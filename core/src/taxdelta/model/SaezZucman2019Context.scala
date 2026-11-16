@@ -7,19 +7,24 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
   )
 
   val defaultParametersDouble = Map(
-    AverageSalesTaxShareOfIncome                     -> 0.04675733843078d, // from calculatorbig, F137: calculated as the denom-weighted avg of per-group sales-tax-share-of-income
-    AverageValueAddedTaxableConsumptionShareOfIncome -> 0.4d,
-    ConsumerIncidenceShare                           -> 0.75d,
-    EmployerShareOfPrivateHealthPremiums             -> 0.55d,
-    EstateTaxCurrentAvoidanceRate                    -> 0.6d,
-    EstateTaxCurrentStatutoryTopRate                 -> 0.4d,
-    RealizedGainsTaxableShare                        -> 0.366d,
+    AverageSalesTaxShareOfIncome                        -> 0.04675733843078d, // from calculatorbig, F137: calculated as the denom-weighted avg of per-group sales-tax-share-of-income
+    AverageValueAddedTaxableConsumptionShareOfIncome    ->   0.4d,
+    ConsumerIncidenceShare                              ->  0.75d,
+    CorporateTaxCurrentDomesticProfits                  ->  1308d, // billions
+    CorporateTaxCurrentDomesticReceipts                 ->   210d, // billions
+    CorporateTaxCurrentForeignReceipts                  ->     8d,
+    CorporateTaxForeignReceiptsUnderStrongerEnforcement ->    96d,
+    EmployerShareOfPrivateHealthPremiums                ->  0.55d,
+    EstateTaxCurrentAvoidanceRate                       ->   0.6d,
+    EstateTaxCurrentStatutoryTopRate                    ->   0.4d,
+    RealizedGainsTaxableShare                           -> 0.366d,
   )
 
   val dataDouble = Map(
+    CorporateTaxShareOfIncome                         -> SaezZucman2019DataBridge.corporateTaxSharesOfIncome,
     EmployersHealthInsuranceContributionShareOfIncome -> SaezZucman2019DataBridge.healthTaxSharesOfIncome,
     EstateTaxShareOfIncome                            -> SaezZucman2019DataBridge.estateTaxSharesOfIncome,
-    PayrollTaxShareOfIncome                           -> SaezZucman2019DataBridge.payrollTaxShareOfIncome,
+    PayrollTaxShareOfIncome                           -> SaezZucman2019DataBridge.payrollTaxSharesOfIncome,
     SalesTaxShareOfIncome                             -> SaezZucman2019DataBridge.salesTaxSharesOfIncome,
   )
   val dataInt = Map(
@@ -48,15 +53,17 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
   // the final parameterization of the model
   object Baseline:
     val leversBoolean =  Map(
+      CorporateTaxDeployStrongerEnforcement                    -> false,
       EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax -> false
     )
     val leversDouble = Map(
-      EstateTaxAnticipatedAvoidanceRate                                 -> parametersDouble(EstateTaxCurrentAvoidanceRate),    // no change at baseline
-      EstateTaxProposedTopRate                                          -> parametersDouble(EstateTaxCurrentStatutoryTopRate), // no change in baseline
-      ReductionOfEmployerSponsoredPrivateHealthPremiums                 -> 0.0d,
-      NationalIncomeTaxRate                                             -> 0.0d,
-      ValueAddedTaxRate                                                 -> 0.0d,
-      WealthTaxEvasionRate                                              -> 0.15d,
+      CorporateTaxProposedEffectiveRate                 -> parametersDouble(CorporateTaxCurrentDomesticReceipts) / parametersDouble(CorporateTaxCurrentDomesticProfits), // baseline rate, by definition
+      EstateTaxAnticipatedAvoidanceRate                 -> parametersDouble(EstateTaxCurrentAvoidanceRate),    // no change at baseline
+      EstateTaxProposedTopRate                          -> parametersDouble(EstateTaxCurrentStatutoryTopRate), // no change in baseline
+      ReductionOfEmployerSponsoredPrivateHealthPremiums -> 0.0d,
+      NationalIncomeTaxRate                             -> 0.0d,
+      ValueAddedTaxRate                                 -> 0.0d,
+      WealthTaxEvasionRate                              -> 0.15d,
     )
     val leversSchedule = Map(
       WealthTaxSchedule -> Schedule.empty
@@ -79,6 +86,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
                           NationalIncomeTax  -> calculators.NationalIncomeTaxInstrument,
                           PayrollTax         -> calculators.PayrollTaxInstrument,
                           ValueAddedTax      -> calculators.ValueAddedTaxInstrument,
-                          WealthTax          -> calculators.WealthTaxInstrument
+                          WealthTax          -> calculators.WealthTaxInstrument,
+                          CorporateTax       -> calculators.CorporateTaxInstrument, // depends upon NationalIncomeTax and ValueAddedTax having been executed previously
                         )
   )

@@ -41,7 +41,8 @@ abstract class ModelContext:
   abstract class AverageIncomeRebaser extends Function2[Group,Model,Double], Requirer;
 
   object Instrument:
-    case class Result( baselineTaxRate : Double, reformedTaxRate : Double, deltaTaxRate : Double)
+    case class Result( baselineTaxRate : Double, reformedTaxRate : Double, deltaTaxRate : Double):
+      def taxRateUnder( counterfactual : Option[Counterfactual] ) : Double = counterfactual.fold(baselineTaxRate)(_ => reformedTaxRate)
     trait Unified extends Instrument:
       protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double
       def baselineTaxRate( model : Model )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double = taxRate(model, None)(prev)(g)

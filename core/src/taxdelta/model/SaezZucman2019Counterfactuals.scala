@@ -12,9 +12,11 @@ class SaezZucman2019Counterfactuals[C <: SaezZucman2019Context & Singleton](val 
       IndexedSeq(0.0005,      0.0010,   0.0010 + 0.02,   0.0010 + 0.06)
     )
     val leversBoolean =  Map(
-      EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax -> true
+      CorporateTaxDeployStrongerEnforcement                    -> true,
+      EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax -> true,
     )
     val leversDouble = Map(
+      CorporateTaxProposedEffectiveRate                 -> 0.30d,
       EstateTaxProposedTopRate                          -> 0.55d,
       EstateTaxAnticipatedAvoidanceRate                 -> 0.40d,
       ReductionOfEmployerSponsoredPrivateHealthPremiums -> 1.00d, // single-payer!

@@ -10,12 +10,17 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case AverageSalesTaxShareOfIncome
     case AverageValueAddedTaxableConsumptionShareOfIncome
     case ConsumerIncidenceShare
+    case CorporateTaxCurrentDomesticProfits
+    case CorporateTaxCurrentDomesticReceipts
+    case CorporateTaxCurrentForeignReceipts
+    case CorporateTaxForeignReceiptsUnderStrongerEnforcement
     case EmployerShareOfPrivateHealthPremiums
     case EstateTaxCurrentAvoidanceRate
     case EstateTaxCurrentStatutoryTopRate
     case RealizedGainsTaxableShare // income stats exclude realized gains, but the tax base does in part include them
 
   enum LDDouble extends InputLabel:
+    case CorporateTaxShareOfIncome
     case EmployersHealthInsuranceContributionShareOfIncome
     case EstateTaxShareOfIncome
     case PayrollTaxShareOfIncome
@@ -29,9 +34,11 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case WealthExcessCurve
 
   enum LLBoolean extends InputLabel:
+    case CorporateTaxDeployStrongerEnforcement
     case EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax
 
   enum LLDouble extends InputLabel:
+    case CorporateTaxProposedEffectiveRate
     case EstateTaxAnticipatedAvoidanceRate
     case EstateTaxProposedTopRate
     case NationalIncomeTaxRate // presumably a flat tax?
@@ -43,6 +50,7 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case WealthTaxSchedule
 
   enum LInstrument:
+    case CorporateTax
     case EstateTax
     case HealthInsuranceTax
     case NationalIncomeTax
