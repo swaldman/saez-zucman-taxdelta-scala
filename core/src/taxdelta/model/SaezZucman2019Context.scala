@@ -1,29 +1,6 @@
 package taxdelta.model
 
-object SaezZucman2019Context:
-  /*
-   *  we only have data up to wealth > $1B, so we make some assumptions
-   *  we assume 90% of wealth over $1B also over $2.5B,
-   *  but only  60% of wealth over $1B is over $5B,
-   *  and only  45% of wealth over $1B is also over $10B.
-   */
-  val ImputedHigherBrackets = IndexedSeq[Double](2_500_000_000, 5_000_000_000, 10_000_000_000)
-  val ImputationFactors     = IndexedSeq[Double](0.9d, 0.6d, 0.45d)
-  val ImputationZeroes      = ImputationFactors.map( _ => 0.0d )
-
-  def imputeHigherBrackets( topGroupOnly : Boolean )( tup : Tuple2[Group,ExcessCurve.Default] ) : Tuple2[Group,ExcessCurve.Default] =
-    val (k,v) = tup
-    if topGroupOnly then
-      k match
-        case tg : TopGroup => (k, v.imputeHigherBrackets(ImputedHigherBrackets,ImputationFactors))
-        case _             => (k, v.imputeHigherBrackets(ImputedHigherBrackets,ImputationZeroes))
-    else
-      (k, v.imputeHigherBrackets(ImputedHigherBrackets,ImputationFactors) )
-
 class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) extends SaezZucman2019Labels:
-  import SaezZucman2019Context.imputeHigherBrackets as ihb
-
-  val ImputeHigherWealthBracketsTopGroupOnly = true
 
   val defaultParametersBoolean = Map(
     CountPrivateHealthPremiumsAsTax -> false
@@ -37,12 +14,6 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     RealizedGainsTaxableShare                        -> 0.366d,
   )
 
-  // manage parameter overrides
-  val overrideParametersBoolean = findOverrideParametersBoolean( parameterOverrides )
-  val overrideParametersDouble  = findOverrideParametersDouble( parameterOverrides )
-  val unparsedParameterOverrides = parameterOverrides.keySet -- (overrideParametersBoolean.keySet.map(_.toString) ++ overrideParametersDouble.keySet.map(_.toString))
-  require(unparsedParameterOverrides.isEmpty, "The following keys of parameterOverrides were unrecognized, or else their values were not of their expected type: " + unparsedParameterOverrides)
-
   val dataDouble = Map(
     EmployersHealthInsuranceContributionShareOfIncome -> SaezZucman2019DataBridge.healthTaxSharesOfIncome,
     PayrollTaxShareOfIncome                           -> SaezZucman2019DataBridge.payrollTaxShareOfIncome,
@@ -53,7 +24,9 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     RealizedCapitalGains  -> SaezZucman2019DataBridge.realizedGains,
   )
   val dataExcessCurve = Map(
-    WealthExcessCurve -> SaezZucman2019DataBridge.wealthExcessCurves.map(ihb(ImputeHigherWealthBracketsTopGroupOnly)) // a bit awkward, accessing the parameter map pre-model
+    // we match the model's imputation of health for high levels not in the data,
+    // only for the top 400 group. see core.scala for details
+    WealthExcessCurve -> SaezZucman2019DataBridge.wealthExcessCurves.map(imputeHigherBracketsTopGroupOnly) 
   )
 
   object Baseline:
@@ -94,6 +67,12 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     )
 
   val calculators = new SaezZucman2019Calculators[this.type](this)
+
+  // manage parameter overrides
+  val overrideParametersBoolean = findOverrideParametersBoolean( parameterOverrides )
+  val overrideParametersDouble  = findOverrideParametersDouble( parameterOverrides )
+  val unparsedParameterOverrides = parameterOverrides.keySet -- (overrideParametersBoolean.keySet.map(_.toString) ++ overrideParametersDouble.keySet.map(_.toString))
+  require(unparsedParameterOverrides.isEmpty, "The following keys of parameterOverrides were unrecognized, or else their values were not of their expected type: " + unparsedParameterOverrides)
 
   val model = Model(
     groups            = SaezZucman2019DataBridge.groups,

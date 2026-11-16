@@ -24,3 +24,24 @@ final case class Groups( percentileGroups : immutable.SortedSet[PercentileGroup]
       case tg : TopGroup        => tg == topGroup
   def toSeq = percentileGroups.toSeq :+ topGroup
 
+/*
+ *  we only have data up to wealth > $1B, so we make some assumptions
+ *  we assume 90% of wealth over $1B also over $2.5B,
+ *  but only  60% of wealth over $1B is over $5B,
+ *  and only  45% of wealth over $1B is also over $10B.
+ */
+val ImputedHigherBrackets = IndexedSeq[Double](2_500_000_000, 5_000_000_000, 10_000_000_000)
+val ImputationFactors     = IndexedSeq[Double](0.9d, 0.6d, 0.45d)
+val ImputationZeroes      = ImputationFactors.map( _ => 0.0d )
+
+def imputeHigherBrackets( topGroupOnly : Boolean )( tup : Tuple2[Group,ExcessCurve.Default] ) : Tuple2[Group,ExcessCurve.Default] =
+  val (k,v) = tup
+  if topGroupOnly then
+    k match
+      case tg : TopGroup => (k, v.imputeHigherBrackets(ImputedHigherBrackets,ImputationFactors))
+      case _             => (k, v.imputeHigherBrackets(ImputedHigherBrackets,ImputationZeroes))
+  else
+    (k, v.imputeHigherBrackets(ImputedHigherBrackets,ImputationFactors) )
+
+def imputeHigherBracketsTopGroupOnly( tup : Tuple2[Group,ExcessCurve.Default] ) : Tuple2[Group,ExcessCurve.Default] = imputeHigherBrackets( true )( tup )
+
