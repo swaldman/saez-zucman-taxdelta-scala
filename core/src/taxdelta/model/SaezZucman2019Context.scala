@@ -11,11 +11,14 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     AverageValueAddedTaxableConsumptionShareOfIncome -> 0.4d,
     ConsumerIncidenceShare                           -> 0.75d,
     EmployerShareOfPrivateHealthPremiums             -> 0.55d,
+    EstateTaxCurrentAvoidanceRate                    -> 0.6d,
+    EstateTaxCurrentStatutoryTopRate                 -> 0.4d,
     RealizedGainsTaxableShare                        -> 0.366d,
   )
 
   val dataDouble = Map(
     EmployersHealthInsuranceContributionShareOfIncome -> SaezZucman2019DataBridge.healthTaxSharesOfIncome,
+    EstateTaxShareOfIncome                            -> SaezZucman2019DataBridge.estateTaxSharesOfIncome,
     PayrollTaxShareOfIncome                           -> SaezZucman2019DataBridge.payrollTaxShareOfIncome,
     SalesTaxShareOfIncome                             -> SaezZucman2019DataBridge.salesTaxSharesOfIncome,
   )
@@ -29,11 +32,27 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     WealthExcessCurve -> SaezZucman2019DataBridge.wealthExcessCurves.map(imputeHigherBracketsTopGroupOnly) 
   )
 
+  val calculators     = new SaezZucman2019Calculators[this.type](this)
+  val counterfactuals = new SaezZucman2019Counterfactuals[this.type](this)
+
+  // manage parameter overrides
+  val overrideParametersBoolean = findOverrideParametersBoolean( parameterOverrides )
+  val overrideParametersDouble  = findOverrideParametersDouble( parameterOverrides )
+  val unparsedParameterOverrides = parameterOverrides.keySet -- (overrideParametersBoolean.keySet.map(_.toString) ++ overrideParametersDouble.keySet.map(_.toString))
+  require(unparsedParameterOverrides.isEmpty, "The following keys of parameterOverrides were unrecognized, or else their values were not of their expected type: " + unparsedParameterOverrides)
+  val parametersBoolean = defaultParametersBoolean ++ overrideParametersBoolean
+  val parametersDouble  = defaultParametersDouble ++ overrideParametersDouble
+
+  // note that we do need to build out baseline scenario after defining the
+  // potentially overridden parameters, because our baseline depends upon
+  // the final parameterization of the model
   object Baseline:
     val leversBoolean =  Map(
       EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax -> false
     )
     val leversDouble = Map(
+      EstateTaxAnticipatedAvoidanceRate                                 -> parametersDouble(EstateTaxCurrentAvoidanceRate),    // no change at baseline
+      EstateTaxProposedTopRate                                          -> parametersDouble(EstateTaxCurrentStatutoryTopRate), // no change in baseline
       ReductionOfEmployerSponsoredPrivateHealthPremiums                 -> 0.0d,
       NationalIncomeTaxRate                                             -> 0.0d,
       ValueAddedTaxRate                                                 -> 0.0d,
@@ -43,20 +62,11 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
       WealthTaxSchedule -> Schedule.empty
     )
 
-  val calculators     = new SaezZucman2019Calculators[this.type](this)
-  val counterfactuals = new SaezZucman2019Counterfactuals[this.type](this)
-
-  // manage parameter overrides
-  val overrideParametersBoolean = findOverrideParametersBoolean( parameterOverrides )
-  val overrideParametersDouble  = findOverrideParametersDouble( parameterOverrides )
-  val unparsedParameterOverrides = parameterOverrides.keySet -- (overrideParametersBoolean.keySet.map(_.toString) ++ overrideParametersDouble.keySet.map(_.toString))
-  require(unparsedParameterOverrides.isEmpty, "The following keys of parameterOverrides were unrecognized, or else their values were not of their expected type: " + unparsedParameterOverrides)
-
   val model = Model(
     groups            = SaezZucman2019DataBridge.groups,
     rebaser           = calculators.Rebaser,
-    parametersBoolean = defaultParametersBoolean ++ overrideParametersBoolean,
-    parametersDouble  = defaultParametersDouble ++ overrideParametersDouble,
+    parametersBoolean = parametersBoolean,
+    parametersDouble  = parametersDouble,
     dataDouble        = dataDouble,
     dataInt           = dataInt,
     dataExcessCurve   = dataExcessCurve,
@@ -64,6 +74,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     leversDouble      = Baseline.leversDouble,
     leversSchedule    = Baseline.leversSchedule,
     instruments       = List(
+                          EstateTax          -> calculators.EstateTaxInstrument,
                           HealthInsuranceTax -> calculators.HealthInsuranceTaxInstrument,
                           NationalIncomeTax  -> calculators.NationalIncomeTaxInstrument,
                           PayrollTax         -> calculators.PayrollTaxInstrument,

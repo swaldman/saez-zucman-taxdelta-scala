@@ -8,6 +8,20 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
     override def apply(g : Group, model : Model) = g.averageIncome + (model.parametersDouble(RealizedGainsTaxableShare) * model.dataInt(RealizedCapitalGains)(g))
     override def requires : Set[InputLabel] = Set(RealizedCapitalGains,RealizedGainsTaxableShare)
 
+  object EstateTaxInstrument extends Instrument.Unified:
+    private def computeTaxRate( estateTaxShareOfIncome : Double, estateTaxCurrentStatutoryTopRate : Double, estateTaxProposedTopRate : Double, estateTaxCurrentAvoidanceRate : Double, estateTaxAnticipatedAvoidanceRate : Double ) : Double =
+      val adjustmentFactorNewTopRate       = estateTaxProposedTopRate / estateTaxCurrentStatutoryTopRate
+      val adjustmentFactorNewAvoidanceRate = (1 - estateTaxAnticipatedAvoidanceRate) / (1 - estateTaxCurrentAvoidanceRate)
+      estateTaxShareOfIncome * adjustmentFactorNewTopRate * adjustmentFactorNewAvoidanceRate
+    protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
+      val estateTaxShareOfIncome = model.dataDouble(EstateTaxShareOfIncome)(g)
+      val estateTaxCurrentStatutoryTopRate = model.parametersDouble(EstateTaxCurrentStatutoryTopRate)
+      val estateTaxProposedTopRate = model.orPrefer( counterfactual )( EstateTaxProposedTopRate )
+      val estateTaxCurrentAvoidanceRate = model.parametersDouble(EstateTaxCurrentAvoidanceRate)
+      val estateTaxAnticipatedAvoidanceRate = model.orPrefer( counterfactual )( EstateTaxAnticipatedAvoidanceRate )
+      computeTaxRate( estateTaxShareOfIncome, estateTaxCurrentStatutoryTopRate, estateTaxProposedTopRate, estateTaxCurrentAvoidanceRate, estateTaxAnticipatedAvoidanceRate )
+    override val requires = Set(EstateTaxShareOfIncome,EstateTaxCurrentStatutoryTopRate,EstateTaxProposedTopRate,EstateTaxCurrentAvoidanceRate,EstateTaxAnticipatedAvoidanceRate)
+
   object HealthInsuranceTaxInstrument extends Instrument.Unified:
     private def computeTaxRate( countPrivateHealthPremiumsAsTax : Boolean, employerSponsoredPrivateHealthPremiumsAsTaxRate : Double, reductionOfEmployerSponsoredPrivateHealthPremiums : Double ) : Double =
       if countPrivateHealthPremiumsAsTax then

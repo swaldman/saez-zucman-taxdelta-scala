@@ -15,8 +15,10 @@ class SaezZucman2019Counterfactuals[C <: SaezZucman2019Context & Singleton](val 
       EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax -> true
     )
     val leversDouble = Map(
-      ReductionOfEmployerSponsoredPrivateHealthPremiums                 -> 1.00d, // single-payer!
-      WealthTaxEvasionRate                                              -> 0.15d,
+      EstateTaxProposedTopRate                          -> 0.55d,
+      EstateTaxAnticipatedAvoidanceRate                 -> 0.40d,
+      ReductionOfEmployerSponsoredPrivateHealthPremiums -> 1.00d, // single-payer!
+      WealthTaxEvasionRate                              -> 0.15d,
     )
     val leversSchedule = Map(
       WealthTaxSchedule -> warrenWealthTaxSchedule,
