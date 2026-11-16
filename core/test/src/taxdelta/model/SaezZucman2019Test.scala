@@ -2,7 +2,7 @@ package taxdelta.model
 
 import taxdelta.data.Sz2019Worksheet_databig as Databig
 
-/** Checks the Saez-Zucman 2019 instruments against the workbook's formulas (`calculatorbig`, columns K/Y, L/T, Q, R, S, U),
+/** Checks the Saez-Zucman 2019 instruments against the workbook's formulas (`calculatorbig`, columns K/Y, L/T, Q, R, S, U, V),
  *  recomputed here independently, straight from the `databig` columns.
  *
  *  The reference uses the workbook's own rate denominator, the `denom` column. The model rebuilds it as
@@ -69,6 +69,15 @@ class SaezZucman2019Test extends munit.FunSuite:
   private def workbookEstateRate(topRate: Double, avoidance: Double)(g: Group): Double =
     (topRate * col(g, "estatetax") / 0.4) * (1 - avoidance) / (1 - 0.6)
 
+  /** calculatorbig!V8 = (1 − R8 − S8) · H8 · R144 / Q144, with H8 = databig!L (corptax), R8 and S8 the group's
+   *  proposed national income tax and VAT rates, Q144 = 210 + 8 and R144 = 1308 · rate + (96 if better taxation
+   *  of multinationals, else 8), all in $bn. */
+  private def workbookCorporateRate(rate: Double, multinationals: Boolean, nit: Double = 0.0, vat: Double = 0.0)(g: Group): Double =
+    val kc = 1308 * (210.0 / 1308) + 1308 * (8.0 / 1308)
+    val kp = 1308 * rate + 1308 * ((if multinationals then 96.0 else 8.0) / 1308)
+    val crowdOut = 1 - workbookNationalIncomeTaxRate(nit)(g) - (if vat == 0.0 then 0.0 else workbookVatRate(vat)(g))
+    crowdOut * col(g, "corptax") * kp / kc
+
   /** calculatorbig!K8 = databig!J (govcontrib); Y8 = K8 + C148 · 0.55 · databig!N. */
   private def workbookPayrollRate(headTax: Boolean)(g: Group): Double =
     col(g, "govcontrib") + (if headTax then 0.55 * col(g, "healthtax") else 0.0)
@@ -131,7 +140,7 @@ class SaezZucman2019Test extends munit.FunSuite:
   // ---- Baseline ----------------------------------------------------------------------------------------------
 
   test("instruments run in order and all report results"):
-    val all = List[LInstrument](EstateTax, HealthInsuranceTax, NationalIncomeTax, PayrollTax, ValueAddedTax, WealthTax)
+    val all = List[LInstrument](EstateTax, HealthInsuranceTax, NationalIncomeTax, PayrollTax, ValueAddedTax, WealthTax, CorporateTax)
     assertEquals(model.run(Counterfactual()).keySet, all.toSet)
     assertEquals(model.instruments.map(_._1), all)
 
@@ -320,3 +329,81 @@ class SaezZucman2019Test extends munit.FunSuite:
 
   test("estate tax: the Warren preset (counterfactuals.Warren) carries her estate levers, 55% top rate and 40% avoidance"):
     assertEveryGroup(reformed(counterfactuals.Warren, EstateTax), workbookEstateRate(0.55, 0.40))
+
+  // ---- Corporate tax (column V) ------------------------------------------------------------------------------
+
+  /** Interface rows 43 (effective rate on US profits) and 44 (better taxation of multinationals), plus the
+   *  presets' national income tax (row 10); no preset has a VAT. */
+  private def corporate(rate: Double, multinationals: Boolean, nit: Double = 0.0, vat: Double = 0.0) = Counterfactual(
+    leversDouble  = Map(CorporateTaxProposedEffectiveRate -> rate, NationalIncomeTaxRate -> nit, ValueAddedTaxRate -> vat),
+    leversBoolean = Map(CorporateTaxDeployStrongerEnforcement -> multinationals)
+  )
+  private val corporatePresets = List(
+    ("Obama",     0.25, false, 0.00),
+    ("book",      0.30, true,  0.07),
+    ("Biden",     0.21, false, 0.00),
+    ("Buttigieg", 0.25, true,  0.00),
+    ("Sanders",   0.25, true,  0.02),
+    ("Warren",    0.30, true,  0.00),
+  )
+
+  test("corporate tax: current law is $210bn on $1,308bn of US profits plus $8bn on foreign profits; $96bn if reformed"):
+    assertEquals(model.parametersDouble(CorporateTaxCurrentDomesticProfits), 1308.0)
+    assertEquals(model.parametersDouble(CorporateTaxCurrentDomesticReceipts), 210.0)
+    assertEquals(model.parametersDouble(CorporateTaxCurrentForeignReceipts), 8.0)
+    assertEquals(model.parametersDouble(CorporateTaxForeignReceiptsUnderStrongerEnforcement), 96.0)
+    assertEquals(model.leversDouble(CorporateTaxProposedEffectiveRate), 210.0 / 1308) // interface C43
+    assertEquals(model.leversBoolean(CorporateTaxDeployStrongerEnforcement), false)  // interface C44
+
+  test("corporate tax: the baseline is corptax (column H) in every group, exactly"):
+    assertEveryGroup(baseline(CorporateTax), g => col(g, "corptax"))
+    for (g, b) <- baseline(CorporateTax) do assertEqualsDouble(b, col(g, "corptax"), 1e-17, s"group ${label(g)}")
+
+  test("corporate tax: the baseline aggregate matches the cached calculatorbig!H137"):
+    assertEqualsDouble(aggregate(baseline(CorporateTax)), 1.2546739521496047e-2, 1e-15)
+
+  test("corporate tax: Warren's preset (counterfactuals.Warren) has a 30% rate and better taxation of multinationals"):
+    assertEveryGroup(reformed(counterfactuals.Warren, CorporateTax), workbookCorporateRate(0.30, true))
+
+  test("corporate tax: declares all its inputs, so a model without the corptax data is rejected"):
+    intercept[IllegalArgumentException](model.copy(dataDouble = model.dataDouble - CorporateTaxShareOfIncome))
+
+  test("corporate tax: runs after the national income tax and VAT, and a model ordering it earlier is rejected"):
+    val order = model.instruments.map(_._1)
+    assert(order.indexOf(CorporateTax) > order.indexOf(NationalIncomeTax))
+    assert(order.indexOf(CorporateTax) > order.indexOf(ValueAddedTax))
+    val corp = model.instruments.find(_._1 == CorporateTax).get
+    intercept[IllegalArgumentException](model.copy(instruments = corp :: model.instruments.filterNot(_ == corp)))
+
+  test("corporate tax: every preset matches column V in every group (with the book's and Sanders' crowd-out)"):
+    for (name, rate, mn, nit) <- corporatePresets do
+      val r = reformed(corporate(rate, mn, nit), CorporateTax)
+      for g <- groups do
+        assertEqualsDouble(r(g), workbookCorporateRate(rate, mn, nit)(g), RateTolerance, s"$name, group ${label(g)}")
+
+  test("corporate tax: without crowd-out every group is scaled by K_p / K_c (Obama 335/218, Warren 488.4/218)"):
+    for (cf, ratio) <- List((corporate(0.25, false), 335.0 / 218), (corporate(0.30, true), 488.4 / 218), (corporate(0.21, false), 282.68 / 218)) do
+      val r = reformed(cf, CorporateTax)
+      for g <- groups if col(g, "corptax") > 0 do
+        assertEqualsDouble(r(g) / col(g, "corptax"), ratio, 1e-12, s"group ${label(g)}")
+
+  test("corporate tax: better taxation of multinationals adds (96 − 8)/218 of the current tax"):
+    val off = reformed(corporate(210.0 / 1308, false), CorporateTax)
+    val on  = reformed(corporate(210.0 / 1308, true), CorporateTax)
+    for g <- groups do
+      assertEqualsDouble(off(g), col(g, "corptax"), 1e-17, s"off, group ${label(g)}")
+      assertEqualsDouble(on(g), col(g, "corptax") * (210 + 96.0) / 218, 1e-15, s"on, group ${label(g)}")
+
+  test("corporate tax: the Obama preset matches cached V8 (P0–1), V135 (top 400) and V137 (aggregate)"):
+    val r = reformed(corporate(0.25, false), CorporateTax)
+    assertEqualsDouble(r(groups.head), 1.5595917795024334e-3, 1e-15)
+    assertEqualsDouble(r(model.groups.topGroup), 7.803074152576267e-2, 1e-15)
+    assertEqualsDouble(aggregate(r), 1.9280540090372361e-2, 1e-15)
+
+  test("corporate tax: crowd-out uses the reformed NIT and VAT rates, (1 − R − S), for a 7% NIT and a 10% VAT"):
+    val cf = corporate(210.0 / 1308, false, nit = 0.07, vat = 0.10)
+    val out = model.run(cf)
+    for g <- groups do
+      val expected = (1 - out(NationalIncomeTax)(g).reformedTaxRate - out(ValueAddedTax)(g).reformedTaxRate) * col(g, "corptax")
+      assertEqualsDouble(out(CorporateTax)(g).reformedTaxRate, expected, 1e-15, s"group ${label(g)}")
+      assertEqualsDouble(out(CorporateTax)(g).reformedTaxRate, workbookCorporateRate(210.0 / 1308, false, 0.07, 0.10)(g), RateTolerance, s"group ${label(g)}")
