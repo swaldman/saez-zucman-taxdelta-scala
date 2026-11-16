@@ -2,7 +2,7 @@ package taxdelta.model
 
 import taxdelta.data.Sz2019Worksheet_databig as Databig
 
-/** Checks the Saez-Zucman 2019 instruments against the workbook's formulas (`calculatorbig`, columns K/Y, L/T, Q, R, S),
+/** Checks the Saez-Zucman 2019 instruments against the workbook's formulas (`calculatorbig`, columns K/Y, L/T, Q, R, S, U),
  *  recomputed here independently, straight from the `databig` columns.
  *
  *  The reference uses the workbook's own rate denominator, the `denom` column. The model rebuilds it as
@@ -63,6 +63,11 @@ class SaezZucman2019Test extends munit.FunSuite:
   /** calculatorbig!L8 = databig!N · [interface C16 = "yes"]; T8 = L8 · (1 − reduction). */
   private def workbookHealthRate(shown: Boolean, reduction: Double)(g: Group): Double =
     (if shown then col(g, "healthtax") else 0.0) * (1 - reduction)
+
+  /** calculatorbig!U8 = (topRate · J8 / 0.4) · (1 − avoidance) / (1 − 0.6), with J8 = databig!M (estatetax),
+   *  topRate = interface D40 and avoidance = interface D39. */
+  private def workbookEstateRate(topRate: Double, avoidance: Double)(g: Group): Double =
+    (topRate * col(g, "estatetax") / 0.4) * (1 - avoidance) / (1 - 0.6)
 
   /** calculatorbig!K8 = databig!J (govcontrib); Y8 = K8 + C148 · 0.55 · databig!N. */
   private def workbookPayrollRate(headTax: Boolean)(g: Group): Double =
@@ -126,7 +131,7 @@ class SaezZucman2019Test extends munit.FunSuite:
   // ---- Baseline ----------------------------------------------------------------------------------------------
 
   test("instruments run in order and all report results"):
-    val all = List[LInstrument](HealthInsuranceTax, NationalIncomeTax, PayrollTax, ValueAddedTax, WealthTax)
+    val all = List[LInstrument](EstateTax, HealthInsuranceTax, NationalIncomeTax, PayrollTax, ValueAddedTax, WealthTax)
     assertEquals(model.run(Counterfactual()).keySet, all.toSet)
     assertEquals(model.instruments.map(_._1), all)
 
@@ -259,3 +264,59 @@ class SaezZucman2019Test extends munit.FunSuite:
     val c = SaezZucman2019Context(Map("EmployerShareOfPrivateHealthPremiums" -> 1.0))
     for (g, r) <- c.model.run(c.counterfactuals.Warren)(c.PayrollTax) do
       assertEqualsDouble(r.deltaTaxRate, col(g, "healthtax"), 1e-15, s"group ${label(g)}")
+
+  // ---- Estate tax (column U) ---------------------------------------------------------------------------------
+
+  /** Interface rows 40 (top rate) and 39 (avoidance) for the presets with estate-tax changes. */
+  private def estate(topRate: Double, avoidance: Double) = Counterfactual(
+    leversDouble = Map(EstateTaxProposedTopRate -> topRate, EstateTaxAnticipatedAvoidanceRate -> avoidance)
+  )
+  private val estateObama   = estate(0.40, 0.45)
+  private val estateBook    = estate(0.40, 0.20)
+  private val estateWarren  = estate(0.55, 0.40) // also Sanders
+  private val estateButtigieg = estate(0.55, 0.30)
+
+  test("estate tax: current law is a 40% top rate with 60% avoidance (interface C40, C39)"):
+    assertEquals(model.parametersDouble(EstateTaxCurrentStatutoryTopRate), 0.4)
+    assertEquals(model.parametersDouble(EstateTaxCurrentAvoidanceRate), 0.6)
+
+  test("estate tax: the baseline is estatetax (column J) in every group"):
+    assertEveryGroup(baseline(EstateTax), g => col(g, "estatetax"))
+    assertEveryGroup(baseline(EstateTax), workbookEstateRate(0.4, 0.6))
+
+  test("estate tax: the baseline aggregate matches the cached calculatorbig!J137"):
+    assertEqualsDouble(aggregate(baseline(EstateTax)), 1.2568111096428183e-3, 1e-15)
+
+  test("estate tax: every preset matches column U in every group"):
+    for (name, cf, rate, avoid) <- List(
+        ("Obama", estateObama, 0.40, 0.45), ("book", estateBook, 0.40, 0.20),
+        ("Warren/Sanders", estateWarren, 0.55, 0.40), ("Buttigieg", estateButtigieg, 0.55, 0.30)) do
+      val r = reformed(cf, EstateTax)
+      for g <- groups do
+        assertEqualsDouble(r(g), workbookEstateRate(rate, avoid)(g), 1e-15, s"$name, group ${label(g)}")
+
+  test("estate tax: the reform scales every group by (rate / 0.4) × ((1 − avoidance) / 0.4); Warren's is 2.0625"):
+    val b = baseline(EstateTax)
+    val r = reformed(estateWarren, EstateTax)
+    for g <- groups if b(g) > 0 do
+      assertEqualsDouble(r(g) / b(g), 2.0625, 1e-12, s"group ${label(g)}")
+
+  test("estate tax: the Obama preset's aggregate matches the cached calculatorbig!U137 (the saved active plan)"):
+    assertEqualsDouble(aggregate(reformed(estateObama, EstateTax)), 1.7281152757588751e-3, 1e-15)
+
+  test("estate tax: zero below P99.3; 0.67% of income at P99.9 and 1.11% for the top 400"):
+    val b = baseline(EstateTax)
+    for g <- groups.takeWhile(label(_) != "99.3") do
+      assertEqualsDouble(b(g), 0.0, 0.0, s"group ${label(g)}")
+    assert(b(group("99.3")) > 0)
+    assertEqualsDouble(b(group("99.9")), 0.00673, 1e-5)
+    assertEqualsDouble(b(model.groups.topGroup), 0.01114, 1e-5)
+
+  test("estate tax: overriding the current-law parameters moves the baseline levers with them"):
+    val c = SaezZucman2019Context(Map("EstateTaxCurrentStatutoryTopRate" -> 0.5, "EstateTaxCurrentAvoidanceRate" -> 0.5))
+    for (g, r) <- c.model.run(c.Counterfactual())(c.EstateTax) do
+      assertEqualsDouble(r.baselineTaxRate, col(g, "estatetax"), 1e-15, s"group ${label(g)}")
+      assertEqualsDouble(r.deltaTaxRate, 0.0, 0.0, s"group ${label(g)}")
+
+  test("estate tax: the Warren preset (counterfactuals.Warren) carries her estate levers, 55% top rate and 40% avoidance"):
+    assertEveryGroup(reformed(counterfactuals.Warren, EstateTax), workbookEstateRate(0.55, 0.40))
