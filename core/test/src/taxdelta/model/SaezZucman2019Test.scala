@@ -162,11 +162,11 @@ class SaezZucman2019Test extends munit.FunSuite:
 
   test("Warren wealth tax: the worked example (methodology §10.1), P99.997–99.998"):
     val g = groups.find(label(_) == "99.997").get
-    assertEqualsDouble(reformed(WarrenCounterfactual, WealthTax)(g), 0.13737, RateTolerance)
+    assertEqualsDouble(reformed(counterfactuals.Warren, WealthTax)(g), 0.13737, RateTolerance)
 
   test("Warren wealth tax: every group"):
-    val schedule = WarrenCounterfactual.leversSchedule(WealthTaxSchedule)
-    assertEveryGroup(reformed(WarrenCounterfactual, WealthTax), workbookWealthTaxRate(schedule, 0.15))
+    val schedule = counterfactuals.Warren.leversSchedule(WealthTaxSchedule)
+    assertEveryGroup(reformed(counterfactuals.Warren, WealthTax), workbookWealthTaxRate(schedule, 0.15))
 
   test("Sanders wealth tax (brackets above $1bn): every group"):
     assertEveryGroup(reformed(sanders, WealthTax), workbookWealthTaxRate(sandersSchedule, 0.15))
@@ -205,7 +205,7 @@ class SaezZucman2019Test extends munit.FunSuite:
     assertEveryGroup(shownRun(healthShown.Counterfactual()).map((g, r) => (g, r.baselineTaxRate)), workbookHealthRate(shown = true, reduction = 0.0))
 
   test("health insurance, shown: Warren's single-payer removes all private premiums (column T = 0)"):
-    val run = shownRun(healthShown.WarrenCounterfactual)
+    val run = shownRun(healthShown.counterfactuals.Warren)
     assertEveryGroup(run.map((g, r) => (g, r.reformedTaxRate)), workbookHealthRate(shown = true, reduction = 1.0))
     assertEveryGroup(run.map((g, r) => (g, r.deltaTaxRate)), g => -col(g, "healthtax"))
 
@@ -219,7 +219,7 @@ class SaezZucman2019Test extends munit.FunSuite:
     assert(b(model.groups.topGroup) < 1e-4)
 
   test("health insurance, not shown (the default, interface C16 = \"no\"): zero before and after any reform"):
-    for (g, r) <- model.run(WarrenCounterfactual)(HealthInsuranceTax) do
+    for (g, r) <- model.run(counterfactuals.Warren)(HealthInsuranceTax) do
       assertEqualsDouble(r.baselineTaxRate, 0.0, 0.0, s"group ${label(g)}")
       assertEqualsDouble(r.reformedTaxRate, 0.0, 0.0, s"group ${label(g)}")
 
@@ -231,11 +231,11 @@ class SaezZucman2019Test extends munit.FunSuite:
     assertEqualsDouble(b(groups.head), 0.12049213051795959, 1e-15)
 
   test("payroll: Warren's employer head tax adds 0.55 × healthtax in every group (column Y)"):
-    assertEveryGroup(reformed(WarrenCounterfactual, PayrollTax), workbookPayrollRate(headTax = true))
-    assertEveryGroup(delta(WarrenCounterfactual, PayrollTax), g => 0.55 * col(g, "healthtax"))
+    assertEveryGroup(reformed(counterfactuals.Warren, PayrollTax), workbookPayrollRate(headTax = true))
+    assertEveryGroup(delta(counterfactuals.Warren, PayrollTax), g => 0.55 * col(g, "healthtax"))
 
   test("payroll: the head tax is about 7 points at P50 and negligible for the top 400"):
-    val d = delta(WarrenCounterfactual, PayrollTax)
+    val d = delta(counterfactuals.Warren, PayrollTax)
     assertEqualsDouble(d(group("50")), 0.0708, 1e-4)
     assert(d(model.groups.topGroup) < 1e-4)
 
@@ -244,18 +244,18 @@ class SaezZucman2019Test extends munit.FunSuite:
     assertEveryGroup(delta(sanders, PayrollTax), _ => 0.0)
 
   test("Warren, premiums shown: health plus payroll together cut the middle's rate by 0.45 × healthtax"):
-    val h = shownRun(healthShown.WarrenCounterfactual).map((g, r) => (g, r.deltaTaxRate))
-    val p = healthShown.model.run(healthShown.WarrenCounterfactual)(healthShown.PayrollTax).map((g, r) => (g, r.deltaTaxRate))
+    val h = shownRun(healthShown.counterfactuals.Warren).map((g, r) => (g, r.deltaTaxRate))
+    val p = healthShown.model.run(healthShown.counterfactuals.Warren)(healthShown.PayrollTax).map((g, r) => (g, r.deltaTaxRate))
     assertEveryGroup(groups.map(g => (g, h(g) + p(g))).toMap, g => -0.45 * col(g, "healthtax"))
 
   /* As in the workbook, Y8 adds the head tax whatever interface C16 says, so with premiums not shown as a tax,
    * Warren's head tax appears without the premiums it replaces (methodology §8.8, questions §7.3). */
   test("payroll: the head tax applies whether or not premiums are shown as a tax, as in the workbook"):
-    assertEveryGroup(reformed(WarrenCounterfactual, PayrollTax), workbookPayrollRate(headTax = true))
-    val shown = healthShown.model.run(healthShown.WarrenCounterfactual)(healthShown.PayrollTax)
+    assertEveryGroup(reformed(counterfactuals.Warren, PayrollTax), workbookPayrollRate(headTax = true))
+    val shown = healthShown.model.run(healthShown.counterfactuals.Warren)(healthShown.PayrollTax)
     assertEveryGroup(shown.map((g, r) => (g, r.reformedTaxRate)), workbookPayrollRate(headTax = true))
 
   test("payroll: the head tax scales with the EmployerShareOfPrivateHealthPremiums parameter"):
     val c = SaezZucman2019Context(Map("EmployerShareOfPrivateHealthPremiums" -> 1.0))
-    for (g, r) <- c.model.run(c.WarrenCounterfactual)(c.PayrollTax) do
+    for (g, r) <- c.model.run(c.counterfactuals.Warren)(c.PayrollTax) do
       assertEqualsDouble(r.deltaTaxRate, col(g, "healthtax"), 1e-15, s"group ${label(g)}")
