@@ -3,7 +3,6 @@ package taxdelta.model
 abstract class ModelContext:
 
   trait InputLabel
-  trait ResultLabel
 
   /* Constants assumed by the model */
   type LabelParameterDouble  <: InputLabel

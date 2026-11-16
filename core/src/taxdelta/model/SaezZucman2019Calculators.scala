@@ -1,8 +1,25 @@
 package taxdelta.model
 
-object SaezZucman2019Instruments:
+class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val context : C):
 
-  import SaezZucman2019Context.*
+  import context.*
+
+  object Rebaser extends AverageIncomeRebaser:
+    override def apply(g : Group, model : Model) = g.averageIncome + (model.parametersDouble(RealizedGainsTaxableShare) * model.dataInt(RealizedCapitalGains)(g))
+    override def requires : Set[InputLabel] = Set(RealizedCapitalGains,RealizedGainsTaxableShare)
+
+  object HealthInsuranceTaxInstrument extends Instrument.Unified:
+    private def computeTaxRate( countPrivateHealthPremiumsAsTax : Boolean, employerSponsoredPrivateHealthPremiumsAsTaxRate : Double, reductionOfEmployerSponsoredPrivateHealthPremiums : Double ) : Double =
+      if countPrivateHealthPremiumsAsTax then
+        (1 - reductionOfEmployerSponsoredPrivateHealthPremiums) * employerSponsoredPrivateHealthPremiumsAsTaxRate
+      else
+        0
+    protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
+      val countPrivateHealthPremiumsAsTax = model.parametersBoolean(CountPrivateHealthPremiumsAsTax)
+      val employerSponsoredPrivateHealthPremiumsAsTaxRate = model.dataDouble(EmployersHealthInsuranceContributionShareOfIncome)(g)
+      val reductionOfEmployerSponsoredPrivateHealthPremiums = model.orPrefer(counterfactual)(ReductionOfEmployerSponsoredPrivateHealthPremiums)
+      computeTaxRate( countPrivateHealthPremiumsAsTax, employerSponsoredPrivateHealthPremiumsAsTaxRate, reductionOfEmployerSponsoredPrivateHealthPremiums )
+    override val requires = Set(CountPrivateHealthPremiumsAsTax,EmployersHealthInsuranceContributionShareOfIncome,ReductionOfEmployerSponsoredPrivateHealthPremiums)
 
   object WealthTaxInstrument extends Instrument.Unified:
     private def computeTaxRate( schedule : Schedule, excessCurve : ExcessCurve, evasionRate : Double, rebasedAverageIncome : Double ) : Double =
@@ -22,6 +39,32 @@ object SaezZucman2019Instruments:
       val nitRate = model.orPrefer(counterfactual)(NationalIncomeTaxRate)
       computeTaxRate( nitRate, model.dataInt(NationalIncomeTaxBase)(g), model.rebasedAverageIncome(g) )
     override val requires = Set(NationalIncomeTaxBase,NationalIncomeTaxRate)
+
+  object PayrollTaxInstrument extends Instrument.Unified:
+    private def computeTaxRate( 
+      employerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax : Boolean, 
+      payrollTaxShareOfIncome : Double, 
+      employerShareOfPrivateHealthPremiums : Double, 
+      employerSponsoredPrivateHealthPremiumsAsTaxRate : Double 
+    ) : Double =
+      val extra =
+        if employerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax then 
+          (employerShareOfPrivateHealthPremiums * employerSponsoredPrivateHealthPremiumsAsTaxRate) 
+        else 
+          0
+      payrollTaxShareOfIncome + extra
+    protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
+      val employerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax = model.orPrefer(counterfactual)(EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax)
+      val payrollTaxShareOfIncome = model.dataDouble(PayrollTaxShareOfIncome)(g)
+      val employerShareOfPrivateHealthPremiums = model.parametersDouble(EmployerShareOfPrivateHealthPremiums)
+      val employerSponsoredPrivateHealthPremiumsAsTaxRate = model.dataDouble(EmployersHealthInsuranceContributionShareOfIncome)(g)
+      computeTaxRate(
+        employerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax,
+        payrollTaxShareOfIncome,
+        employerShareOfPrivateHealthPremiums,
+        employerSponsoredPrivateHealthPremiumsAsTaxRate
+      )
+    override val requires = Set(EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax,PayrollTaxShareOfIncome,EmployerShareOfPrivateHealthPremiums,EmployersHealthInsuranceContributionShareOfIncome)
 
   object ValueAddedTaxInstrument extends Instrument.Unified:
     private def groupSpecificWeightingOfTaxableSales( groupSpecificSalesTaxShareOfIncome : Double, averageSalesTaxShareOfIncome : Double, consumerIncidenceShare : Double) : Double =

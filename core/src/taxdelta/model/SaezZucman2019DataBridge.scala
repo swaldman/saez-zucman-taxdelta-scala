@@ -40,17 +40,23 @@ object SaezZucman2019DataBridge:
 
   lazy val wealthExcessCurves : Map[Group,ExcessCurve.Default] = groups.toSeq.map( g => (g, wealthExcessCurveForGroup(g)) ).toMap
 
-  private def intItemsForGroup(g : Group, colHeader : String) : Int =
+  private def intItemForGroup(g : Group, colHeader : String) : Int =
     val rowLabel = rowColValues(g)
     Sz2019Worksheet_databig.value(rowLabel,colHeader).toInt
 
-  private def realizedGainsForGroup(g : Group) : Int = intItemsForGroup(g, "fikgi")
-  private def nationalIncomeTaxBaseForGroup(g : Group) : Int = intItemsForGroup(g, "nitaxbase")
+  private def realizedGainsForGroup(g : Group) : Int = intItemForGroup(g, "fikgi")
+  private def nationalIncomeTaxBaseForGroup(g : Group) : Int = intItemForGroup(g, "nitaxbase")
 
-  private def salesTaxShareOfIncomeForGroup(g : Group) : Double =
+  private def doubleItemForGroup(g : Group, colHeader : String) : Double =
     val rowLabel = rowColValues(g)
-    Sz2019Worksheet_databig.doubleValue(rowLabel,"salestax")
+    Sz2019Worksheet_databig.doubleValue(rowLabel,colHeader)
 
-  lazy val realizedGains          : Map[Group,Int]    = groups.toSeq.map( g => (g, realizedGainsForGroup(g)) ).toMap
-  lazy val nationalIncomeTaxBase  : Map[Group,Int]    = groups.toSeq.map( g => (g, nationalIncomeTaxBaseForGroup(g)) ).toMap
-  lazy val salesTaxSharesOfIncome : Map[Group,Double] = groups.toSeq.map( g => (g, salesTaxShareOfIncomeForGroup(g)) ).toMap
+  private def payrollTaxShareOfIncomeForGroup(g : Group) : Double = doubleItemForGroup(g,"govcontrib") // "Contributions for government social insurance" is the NIPA term for payroll taxes: Social Security, Medicare, unemployment insurance and similar programs. 
+  private def salesTaxShareOfIncomeForGroup(g : Group) : Double = doubleItemForGroup(g,"salestax")
+  private def healthTaxShareOfIncomeForGroup(g : Group) : Double = doubleItemForGroup(g,"healthtax")
+
+  lazy val realizedGains           : Map[Group,Int]    = groups.toSeq.map( g => (g, realizedGainsForGroup(g)) ).toMap
+  lazy val nationalIncomeTaxBase   : Map[Group,Int]    = groups.toSeq.map( g => (g, nationalIncomeTaxBaseForGroup(g)) ).toMap
+  lazy val payrollTaxShareOfIncome : Map[Group,Double] = groups.toSeq.map( g => (g, payrollTaxShareOfIncomeForGroup(g)) ).toMap
+  lazy val salesTaxSharesOfIncome  : Map[Group,Double] = groups.toSeq.map( g => (g, salesTaxShareOfIncomeForGroup(g)) ).toMap
+  lazy val healthTaxSharesOfIncome : Map[Group,Double] = groups.toSeq.map( g => (g, healthTaxShareOfIncomeForGroup(g)) ).toMap
