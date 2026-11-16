@@ -21,11 +21,11 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
   )
 
   val dataDouble = Map(
-    CorporateTaxShareOfIncome                         -> SaezZucman2019DataBridge.corporateTaxSharesOfIncome,
-    EmployersHealthInsuranceContributionShareOfIncome -> SaezZucman2019DataBridge.healthTaxSharesOfIncome,
-    EstateTaxShareOfIncome                            -> SaezZucman2019DataBridge.estateTaxSharesOfIncome,
-    PayrollTaxShareOfIncome                           -> SaezZucman2019DataBridge.payrollTaxSharesOfIncome,
-    SalesTaxShareOfIncome                             -> SaezZucman2019DataBridge.salesTaxSharesOfIncome,
+    CorporateTaxShareOfIncome                         -> SaezZucman2019DataBridge.corporateTaxShareOfIncome,
+    EmployersHealthInsuranceContributionShareOfIncome -> SaezZucman2019DataBridge.healthTaxShareOfIncome,
+    EstateTaxShareOfIncome                            -> SaezZucman2019DataBridge.estateTaxShareOfIncome,
+    PayrollTaxShareOfIncome                           -> SaezZucman2019DataBridge.payrollTaxShareOfIncome,
+    SalesTaxShareOfIncome                             -> SaezZucman2019DataBridge.salesTaxShareOfIncome,
   )
   val dataInt = Map(
     NationalIncomeTaxBase -> SaezZucman2019DataBridge.nationalIncomeTaxBase,

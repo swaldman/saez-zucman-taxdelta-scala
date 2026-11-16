@@ -60,9 +60,9 @@ object SaezZucman2019DataBridge:
   lazy val nationalIncomeTaxBase   : Map[Group,Int]    = groups.toSeq.map( g => (g, nationalIncomeTaxBaseForGroup(g))   ).toMap
   lazy val realizedGains           : Map[Group,Int]    = groups.toSeq.map( g => (g, realizedGainsForGroup(g))           ).toMap
 
-  lazy val corporateTaxSharesOfIncome : Map[Group,Double] = groups.toSeq.map( g => (g, corporateTaxShareOfIncomeForGroup(g)) ).toMap
-  lazy val estateTaxSharesOfIncome    : Map[Group,Double] = groups.toSeq.map( g => (g, estateTaxShareOfIncomeForGroup(g))    ).toMap
-  lazy val healthTaxSharesOfIncome    : Map[Group,Double] = groups.toSeq.map( g => (g, healthTaxShareOfIncomeForGroup(g))    ).toMap
-  lazy val payrollTaxSharesOfIncome   : Map[Group,Double] = groups.toSeq.map( g => (g, payrollTaxShareOfIncomeForGroup(g))   ).toMap
-  lazy val salesTaxSharesOfIncome     : Map[Group,Double] = groups.toSeq.map( g => (g, salesTaxShareOfIncomeForGroup(g))     ).toMap
+  lazy val corporateTaxShareOfIncome : Map[Group,Double] = groups.toSeq.map( g => (g, corporateTaxShareOfIncomeForGroup(g)) ).toMap
+  lazy val estateTaxShareOfIncome    : Map[Group,Double] = groups.toSeq.map( g => (g, estateTaxShareOfIncomeForGroup(g))    ).toMap
+  lazy val healthTaxShareOfIncome    : Map[Group,Double] = groups.toSeq.map( g => (g, healthTaxShareOfIncomeForGroup(g))    ).toMap
+  lazy val payrollTaxShareOfIncome   : Map[Group,Double] = groups.toSeq.map( g => (g, payrollTaxShareOfIncomeForGroup(g))   ).toMap
+  lazy val salesTaxShareOfIncome     : Map[Group,Double] = groups.toSeq.map( g => (g, salesTaxShareOfIncomeForGroup(g))     ).toMap
 
