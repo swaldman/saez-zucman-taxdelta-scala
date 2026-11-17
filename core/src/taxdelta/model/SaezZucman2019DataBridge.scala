@@ -40,6 +40,17 @@ object SaezZucman2019DataBridge:
 
   lazy val wealthExcessCurves : Map[Group,ExcessCurve.Default] = groups.toSeq.map( g => (g, wealthExcessCurveForGroup(g)) ).toMap
 
+  private val DatabigIncomeThresholds = IndexedSeq[Double](0, 77_000, 165_000, 315_000, 400_000, 600_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000, 25_000_000, 50_000_000)
+
+  // this is fragile, we're relying on the ordering of the columns
+  // and that they match DatabigWealthThresholds
+  // but they are in fact known and fixed for now
+  private def incomeExcessCurveForGroup(g : Group) : ExcessCurve.Default =
+    val rowLabel = rowColValues(g)
+    ExcessCurve.Default(DatabigWealthThresholds, Sz2019Worksheet_databig.header.filter(_.startsWith("taxinc_")).map(c => Sz2019Worksheet_databig.doubleValue(rowLabel,c)))
+
+  lazy val incomeExcessCurves : Map[Group,ExcessCurve.Default] = groups.toSeq.map( g => (g, incomeExcessCurveForGroup(g)) ).toMap
+
   private def intItemForGroup(g : Group, colHeader : String) : Int =
     val rowLabel = rowColValues(g)
     Sz2019Worksheet_databig.value(rowLabel,colHeader).toInt

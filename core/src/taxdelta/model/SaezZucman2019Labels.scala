@@ -35,6 +35,7 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case FiscalIncomeIncludingCapitalGains
 
   enum LDExcessCurve extends InputLabel:
+    case IncomeExcessCurve
     case WealthExcessCurve
 
   enum LLBoolean extends InputLabel:

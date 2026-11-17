@@ -32,6 +32,8 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     FiscalCapitalGains    -> SaezZucman2019DataBridge.fiscalCapitalGains,
   )
   val dataExcessCurve = Map(
+    IncomeExcessCurve -> SaezZucman2019DataBridge.incomeExcessCurves,
+
     // we match the model's imputation of health for high levels not in the data,
     // only for the top 400 group. see core.scala for details
     WealthExcessCurve -> SaezZucman2019DataBridge.wealthExcessCurves.map(imputeHigherBracketsTopGroupOnly) 
