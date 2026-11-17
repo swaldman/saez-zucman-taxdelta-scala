@@ -17,9 +17,11 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case EmployerShareOfPrivateHealthPremiums
     case EstateTaxCurrentAvoidanceRate
     case EstateTaxCurrentStatutoryTopRate
-    case RealizedGainsTaxableShare // income stats exclude realized gains, but the tax base does in part include them
+    case FiscalCapitalGainsTaxableShare // income stats exclude realized gains, but the tax base does in part include them
 
   enum LDDouble extends InputLabel:
+    case AvgOrdinaryMarginalTaxRate
+    case AvgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent
     case CorporateTaxShareOfIncome
     case EmployersHealthInsuranceContributionShareOfIncome
     case EstateTaxShareOfIncome
@@ -28,7 +30,9 @@ abstract class SaezZucman2019Labels extends ModelContext:
 
   enum LDInt extends InputLabel:
     case NationalIncomeTaxBase
-    case RealizedCapitalGains
+    case FiscalCapitalGains
+    case FiscalDividends
+    case FiscalIncomeIncludingCapitalGains
 
   enum LDExcessCurve extends InputLabel:
     case WealthExcessCurve

@@ -48,21 +48,31 @@ object SaezZucman2019DataBridge:
     val rowLabel = rowColValues(g)
     Sz2019Worksheet_databig.doubleValue(rowLabel,colHeader)
 
-  private def realizedGainsForGroup(g : Group)         : Int = intItemForGroup(g, "fikgi")
-  private def nationalIncomeTaxBaseForGroup(g : Group) : Int = intItemForGroup(g, "nitaxbase")
+  private def fiscalCapitalGainsForGroup(g : Group)            : Int = intItemForGroup(g, "fikgi")
+  private def fiscalDividendsForGroup(g : Group)               : Int = intItemForGroup(g, "fidiv")
+  private def fiscalIncomeIncludingCapGainsForGroup(g : Group) : Int = intItemForGroup(g, "agi")
+  private def nationalIncomeTaxBaseForGroup(g : Group)         : Int = intItemForGroup(g, "nitaxbase")
 
-  private def corporateTaxShareOfIncomeForGroup(g : Group) : Double = doubleItemForGroup(g,"corptax")
-  private def estateTaxShareOfIncomeForGroup(g : Group)    : Double = doubleItemForGroup(g,"estatetax")
-  private def healthTaxShareOfIncomeForGroup(g : Group)    : Double = doubleItemForGroup(g,"healthtax")
-  private def payrollTaxShareOfIncomeForGroup(g : Group)   : Double = doubleItemForGroup(g,"govcontrib") // "Contributions for government social insurance" is the NIPA term for payroll taxes: Social Security, Medicare, unemployment insurance and similar programs. 
-  private def salesTaxShareOfIncomeForGroup(g : Group)     : Double = doubleItemForGroup(g,"salestax")
+  private def avgOrdinaryMarginalTaxRateForGroup(g : Group)                            : Double = doubleItemForGroup(g,"mtr")
+  private def avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercentForGroup(g : Group) : Double = doubleItemForGroup(g,"mtrextra")
+  private def corporateTaxShareOfIncomeForGroup(g : Group)                             : Double = doubleItemForGroup(g,"corptax")
+  private def effectiveIncomeTaxShareOfIncomeForGroup(g : Group)                       : Double = doubleItemForGroup(g,"ditax")
+  private def estateTaxShareOfIncomeForGroup(g : Group)                                : Double = doubleItemForGroup(g,"estatetax")
+  private def healthTaxShareOfIncomeForGroup(g : Group)                                : Double = doubleItemForGroup(g,"healthtax")
+  private def payrollTaxShareOfIncomeForGroup(g : Group)                               : Double = doubleItemForGroup(g,"govcontrib") // "Contributions for government social insurance" is NIPA term for payroll taxes: Social Security, Medicare, unemployment insurance and similar
+  private def salesTaxShareOfIncomeForGroup(g : Group)                                 : Double = doubleItemForGroup(g,"salestax")
 
-  lazy val nationalIncomeTaxBase   : Map[Group,Int]    = groups.toSeq.map( g => (g, nationalIncomeTaxBaseForGroup(g))   ).toMap
-  lazy val realizedGains           : Map[Group,Int]    = groups.toSeq.map( g => (g, realizedGainsForGroup(g))           ).toMap
+  lazy val fiscalCapitalGains            : Map[Group,Int] = groups.toSeq.map( g => (g, fiscalCapitalGainsForGroup(g))            ).toMap
+  lazy val fiscalDividends               : Map[Group,Int] = groups.toSeq.map( g => (g, fiscalDividendsForGroup(g))               ).toMap
+  lazy val fiscalIncomeIncludingCapGains : Map[Group,Int] = groups.toSeq.map( g => (g, fiscalIncomeIncludingCapGainsForGroup(g)) ).toMap
+  lazy val nationalIncomeTaxBase         : Map[Group,Int] = groups.toSeq.map( g => (g, nationalIncomeTaxBaseForGroup(g))         ).toMap
 
-  lazy val corporateTaxShareOfIncome : Map[Group,Double] = groups.toSeq.map( g => (g, corporateTaxShareOfIncomeForGroup(g)) ).toMap
-  lazy val estateTaxShareOfIncome    : Map[Group,Double] = groups.toSeq.map( g => (g, estateTaxShareOfIncomeForGroup(g))    ).toMap
-  lazy val healthTaxShareOfIncome    : Map[Group,Double] = groups.toSeq.map( g => (g, healthTaxShareOfIncomeForGroup(g))    ).toMap
-  lazy val payrollTaxShareOfIncome   : Map[Group,Double] = groups.toSeq.map( g => (g, payrollTaxShareOfIncomeForGroup(g))   ).toMap
-  lazy val salesTaxShareOfIncome     : Map[Group,Double] = groups.toSeq.map( g => (g, salesTaxShareOfIncomeForGroup(g))     ).toMap
+  lazy val avgOrdinaryMarginalTaxRate                             : Map[Group,Double] = groups.toSeq.map( g => (g, avgOrdinaryMarginalTaxRateForGroup(g))                            ).toMap
+  lazy val avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent  : Map[Group,Double] = groups.toSeq.map( g => (g, avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercentForGroup(g)) ).toMap
+  lazy val corporateTaxShareOfIncome                              : Map[Group,Double] = groups.toSeq.map( g => (g, corporateTaxShareOfIncomeForGroup(g))                             ).toMap
+  lazy val estateTaxShareOfIncome                                 : Map[Group,Double] = groups.toSeq.map( g => (g, estateTaxShareOfIncomeForGroup(g))                                ).toMap
+  lazy val healthTaxShareOfIncome                                 : Map[Group,Double] = groups.toSeq.map( g => (g, healthTaxShareOfIncomeForGroup(g))                                ).toMap
+  lazy val payrollTaxShareOfIncome                                : Map[Group,Double] = groups.toSeq.map( g => (g, payrollTaxShareOfIncomeForGroup(g))                               ).toMap
+  lazy val salesTaxShareOfIncome                                  : Map[Group,Double] = groups.toSeq.map( g => (g, salesTaxShareOfIncomeForGroup(g))                                 ).toMap
+  lazy val effectiveIncomeTaxShareOfIncome                        : Map[Group,Double] = groups.toSeq.map( g => (g, effectiveIncomeTaxShareOfIncomeForGroup(g))                       ).toMap
 

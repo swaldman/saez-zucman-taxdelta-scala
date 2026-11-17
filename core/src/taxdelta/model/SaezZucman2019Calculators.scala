@@ -5,8 +5,8 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
   import context.*
 
   object Rebaser extends AverageIncomeRebaser:
-    override def apply(g : Group, model : Model) = g.averageIncome + (model.parametersDouble(RealizedGainsTaxableShare) * model.dataInt(RealizedCapitalGains)(g))
-    override def requires : Set[InputLabel] = Set(RealizedCapitalGains,RealizedGainsTaxableShare)
+    override def apply(g : Group, model : Model) = g.averageIncome + (model.parametersDouble(FiscalCapitalGainsTaxableShare) * model.dataInt(FiscalCapitalGains)(g))
+    override def requires : Set[InputLabel] = Set(FiscalCapitalGains,FiscalCapitalGainsTaxableShare)
 
   object CorporateTaxInstrument extends Instrument.Unified:
     private def computeTaxRate(

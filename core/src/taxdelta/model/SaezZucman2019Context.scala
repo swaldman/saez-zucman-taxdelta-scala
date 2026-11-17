@@ -17,7 +17,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     EmployerShareOfPrivateHealthPremiums                ->  0.55d,
     EstateTaxCurrentAvoidanceRate                       ->   0.6d,
     EstateTaxCurrentStatutoryTopRate                    ->   0.4d,
-    RealizedGainsTaxableShare                           -> 0.366d,
+    FiscalCapitalGainsTaxableShare                      -> 0.366d,
   )
 
   val dataDouble = Map(
@@ -29,7 +29,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
   )
   val dataInt = Map(
     NationalIncomeTaxBase -> SaezZucman2019DataBridge.nationalIncomeTaxBase,
-    RealizedCapitalGains  -> SaezZucman2019DataBridge.realizedGains,
+    FiscalCapitalGains    -> SaezZucman2019DataBridge.fiscalCapitalGains,
   )
   val dataExcessCurve = Map(
     // we match the model's imputation of health for high levels not in the data,
