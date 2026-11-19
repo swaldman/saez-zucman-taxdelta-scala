@@ -32,6 +32,7 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case EmployersHealthInsuranceContributionShareOfIncome
     case EstateTaxShareOfIncome
     case PayrollTaxShareOfIncome
+    case PropertyTaxShareOfIncome
     case SalesTaxShareOfIncome
 
   enum LDInt extends InputLabel:
@@ -75,6 +76,7 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case IndividualIncomeTax
     case NationalIncomeTax
     case PayrollTax
+    case PropertyTax
     case SalesAndExciseTax
     case ValueAddedTax
     case WealthTax

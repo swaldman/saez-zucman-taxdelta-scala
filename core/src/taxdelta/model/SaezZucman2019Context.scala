@@ -36,6 +36,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     EmployersHealthInsuranceContributionShareOfIncome     -> SaezZucman2019DataBridge.healthTaxShareOfIncome,
     EstateTaxShareOfIncome                                -> SaezZucman2019DataBridge.estateTaxShareOfIncome,
     PayrollTaxShareOfIncome                               -> SaezZucman2019DataBridge.payrollTaxShareOfIncome,
+    PropertyTaxShareOfIncome                              -> SaezZucman2019DataBridge.propertyTaxShareOfIncome,
     SalesTaxShareOfIncome                                 -> SaezZucman2019DataBridge.salesTaxShareOfIncome,
   )
   val dataInt = Map(
@@ -110,6 +111,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
                           HealthInsuranceTax  -> calculators.HealthInsuranceTaxInstrument,
                           NationalIncomeTax   -> calculators.NationalIncomeTaxInstrument,
                           PayrollTax          -> calculators.PayrollTaxInstrument,
+                          PropertyTax         -> calculators.PropertyTaxInstrument,
                           SalesAndExciseTax   -> calculators.SalesAndExciseTaxInstrument,
                           ValueAddedTax       -> calculators.ValueAddedTaxInstrument,
                           WealthTax           -> calculators.WealthTaxInstrument,

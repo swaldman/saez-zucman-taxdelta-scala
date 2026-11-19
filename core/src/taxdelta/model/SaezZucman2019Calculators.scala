@@ -120,6 +120,13 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       )
     override val requires = Set(EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax,PayrollTaxShareOfIncome,EmployerShareOfPrivateHealthPremiums,EmployersHealthInsuranceContributionShareOfIncome)
 
+
+  // a bit degenerate
+  object PropertyTaxInstrument extends Instrument.Unified:
+    private def computeTaxRate( propertyTaxShareOfIncome : Double ) = propertyTaxShareOfIncome
+    protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double = model.dataDouble(PropertyTaxShareOfIncome)( g )
+    override val requires = Set(PropertyTaxShareOfIncome)
+
   // generally, to expand consumption taxes, prefer introducing a VAT.
   // rescaling sales-and-excise-taxes implies proportionally rescaling all of them,
   // i.e. if you increase the sales tax by 20%, you also increase tobacco and fuel taxes by the same

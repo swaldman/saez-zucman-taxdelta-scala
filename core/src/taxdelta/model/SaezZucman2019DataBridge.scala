@@ -74,6 +74,7 @@ object SaezZucman2019DataBridge:
   private def healthTaxShareOfIncomeForGroup(g : Group)                                : Double = doubleItemForGroup(g,"healthtax")
   private def payrollTaxShareOfIncomeForGroup(g : Group)                               : Double = doubleItemForGroup(g,"govcontrib") // "Contributions for government social insurance" is NIPA term for payroll taxes: Social Security, Medicare, unemployment insurance and similar
   private def salesTaxShareOfIncomeForGroup(g : Group)                                 : Double = doubleItemForGroup(g,"salestax")
+  private def propertyTaxShareOfIncomeForGroup(g : Group)                              : Double = doubleItemForGroup(g,"proptax")
 
   lazy val fiscalCapitalGains            : Map[Group,Int] = groups.toSeq.map( g => (g, fiscalCapitalGainsForGroup(g))            ).toMap
   lazy val fiscalDividends               : Map[Group,Int] = groups.toSeq.map( g => (g, fiscalDividendsForGroup(g))               ).toMap
@@ -89,6 +90,7 @@ object SaezZucman2019DataBridge:
   lazy val payrollTaxShareOfIncome                                : Map[Group,Double] = groups.toSeq.map( g => (g, payrollTaxShareOfIncomeForGroup(g))                               ).toMap
   lazy val salesTaxShareOfIncome                                  : Map[Group,Double] = groups.toSeq.map( g => (g, salesTaxShareOfIncomeForGroup(g))                                 ).toMap
   lazy val effectiveIncomeTaxShareOfIncome                        : Map[Group,Double] = groups.toSeq.map( g => (g, effectiveIncomeTaxShareOfIncomeForGroup(g))                       ).toMap
+  lazy val propertyTaxShareOfIncome                               : Map[Group,Double] = groups.toSeq.map( g => (g, propertyTaxShareOfIncomeForGroup(g))                              ).toMap
 
   lazy val totalNumberOfAdults = numberOfAdults.valuesIterator.foldLeft(0L)( _ + _ )
 
