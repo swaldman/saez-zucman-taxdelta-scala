@@ -92,7 +92,7 @@ class SaezZucman2019Test extends munit.FunSuite:
   )
   private val sanders = Counterfactual(
     leversDouble = Map(WealthTaxEvasionRate -> 0.15),
-    leversSchedule = Map(WealthTaxSchedule -> sandersSchedule)
+    leversOther  = Map(WealthTaxSchedule -> sandersSchedule)
   )
   private val nit7 = Counterfactual(leversDouble = Map(NationalIncomeTaxRate -> 0.07))
   private val vat10 = Counterfactual(leversDouble = Map(ValueAddedTaxRate -> 0.10))
@@ -132,7 +132,7 @@ class SaezZucman2019Test extends munit.FunSuite:
 
   test("above $1bn, wealth excesses are imputed for the top 400 only"):
     for g <- groups do
-      val curve = mainModel.dataExcessCurve(WealthExcessCurve)(g)
+      val curve = mainModel.dataOtherAs[ExcessCurve](WealthExcessCurve)(g)
       val ex = workbookWealthExcess(g)
       for t <- wealthGrid do
         assertEqualsDouble(curve.excessFromThreshold(t), ex(t), 1e-6, s"group ${label(g)}, threshold $t")
@@ -179,7 +179,7 @@ class SaezZucman2019Test extends munit.FunSuite:
     assertEqualsDouble(reformed(counterfactuals.Warren, WealthTax)(g), 0.13737, RateTolerance)
 
   test("Warren wealth tax: every group"):
-    val schedule = counterfactuals.Warren.leversSchedule(WealthTaxSchedule)
+    val schedule = counterfactuals.Warren.leversOtherAs[Schedule](WealthTaxSchedule)
     assertEveryGroup(reformed(counterfactuals.Warren, WealthTax), workbookWealthTaxRate(schedule, 0.15))
 
   test("Sanders wealth tax (brackets above $1bn): every group"):
@@ -204,7 +204,7 @@ class SaezZucman2019Test extends munit.FunSuite:
   private def salesReduction(r: Double) = Counterfactual(leversDouble = Map(SalesAndExciseTaxReduction -> r))
 
   test("sales and excise: the baseline lever is no reduction (interface C15), and the baseline is salestax exactly"):
-    assertEquals(mainModel.leversDouble(SalesAndExciseTaxReduction), 0.0)
+    assertEquals(mainModel.baseline.leversDouble(SalesAndExciseTaxReduction), 0.0)
     for (g, b) <- baseline(SalesAndExciseTax) do assertEqualsDouble(b, col(g, "salestax"), 0.0, s"group ${label(g)}")
 
   test("sales and excise: the book plan's 50% reduction (interface G15) halves every group"):
@@ -229,7 +229,7 @@ class SaezZucman2019Test extends munit.FunSuite:
 
   test("sales and excise: declares its inputs, so a model without the salestax data or the reduction lever is rejected"):
     intercept[IllegalArgumentException](mainModel.copy(dataDouble = mainModel.dataDouble - SalesTaxShareOfIncome))
-    intercept[IllegalArgumentException](mainModel.copy(leversDouble = mainModel.leversDouble - SalesAndExciseTaxReduction))
+    intercept[IllegalArgumentException](mainModel.copy(baseline = mainModel.baseline.copy(leversDouble = mainModel.baseline.leversDouble - SalesAndExciseTaxReduction)))
 
   // ---- VAT (column S) ----------------------------------------------------------------------------------------
 
@@ -386,8 +386,8 @@ class SaezZucman2019Test extends munit.FunSuite:
     assertEquals(mainModel.parametersDouble(CorporateTaxCurrentDomesticReceipts), 210.0)
     assertEquals(mainModel.parametersDouble(CorporateTaxCurrentForeignReceipts), 8.0)
     assertEquals(mainModel.parametersDouble(CorporateTaxForeignReceiptsUnderStrongerEnforcement), 96.0)
-    assertEquals(mainModel.leversDouble(CorporateTaxProposedEffectiveRate), 210.0 / 1308) // interface C43
-    assertEquals(mainModel.leversBoolean(CorporateTaxDeployStrongerEnforcement), false)  // interface C44
+    assertEquals(mainModel.baseline.leversDouble(CorporateTaxProposedEffectiveRate), 210.0 / 1308) // interface C43
+    assertEquals(mainModel.baseline.leversBoolean(CorporateTaxDeployStrongerEnforcement), false)  // interface C44
 
   test("corporate tax: the baseline is corptax (column H) in every group, exactly"):
     assertEveryGroup(baseline(CorporateTax), g => col(g, "corptax"))
@@ -469,7 +469,7 @@ class SaezZucman2019Test extends munit.FunSuite:
   /** The workbook couples retained-earnings attribution to integration (both live in BW and CA), so a preset's
    *  integration switch sets both of the model's levers. */
   private def incomeTaxCounterfactual(p: IncomeTaxPreset, vat: Double = 0.0) = Counterfactual(
-    leversSchedule = Map(IndividualIncomeTaxSchedule -> incomeSchedule(p.rates)),
+    leversOther    = Map(IndividualIncomeTaxSchedule -> incomeSchedule(p.rates)),
     leversBoolean  = Map(
       IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate                -> p.gains,
       IndividualIncomeTaxDividendsTaxedAtOrdinaryRate                   -> p.dividends,
@@ -519,17 +519,17 @@ class SaezZucman2019Test extends munit.FunSuite:
     crowdOut * math.max(col(g, "ditax") + (ch + ci) / denom(g), 0)
 
   test("income tax: the baseline schedule is current law (interface C51:C62) and every treatment switch is off"):
-    assertEquals(mainModel.leversSchedule(IndividualIncomeTaxSchedule), incomeSchedule(currentLawRates))
+    assertEquals(mainModel.baseline.leversOtherAs[Schedule](IndividualIncomeTaxSchedule), incomeSchedule(currentLawRates))
     for l <- List(IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate, IndividualIncomeTaxDividendsTaxedAtOrdinaryRate,
                   IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate, CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates) do
-      assertEquals(mainModel.leversBoolean(l), false, l.toString)
+      assertEquals(mainModel.baseline.leversBoolean(l), false, l.toString)
     assertEquals(mainModel.parametersDouble(CorporateTaxCurrentStateReceipts), 60.0)
     assertEquals(mainModel.parametersDouble(CloselyHeldCorpTotalRetainedEarnings), 166.6)
     assertEquals(mainModel.parametersBoolean(ReplicateWorkbookForeignDoubleCount), true)
 
   test("income tax: the taxable-income excess curves return the taxinc_ columns at their thresholds"):
     for g <- groups; k <- incomeThresholds.indices do
-      assertEqualsDouble(mainModel.dataExcessCurve(IncomeExcessCurve)(g).excessFromThreshold(incomeThresholds(k)), col(g, taxincCols(k)), 0.0,
+      assertEqualsDouble(mainModel.dataOtherAs[ExcessCurve](IncomeExcessCurve)(g).excessFromThreshold(incomeThresholds(k)), col(g, taxincCols(k)), 0.0,
         s"group ${label(g)}, threshold ${incomeThresholds(k)}")
 
   test("income tax: national gains plus dividends (Σ nb · (fikgi + fidiv)) are totalled without overflow, $1,145bn"):
@@ -555,7 +555,7 @@ class SaezZucman2019Test extends munit.FunSuite:
     assertEqualsDouble(reformed(counterfactuals.Warren, IndividualIncomeTax)(group("99.997")), 0.36360, RateTolerance)
 
   test("income tax: the Warren preset (counterfactuals.Warren) carries her brackets and taxes gains and dividends as ordinary income"):
-    assertEquals(counterfactuals.Warren.leversSchedule(IndividualIncomeTaxSchedule), incomeSchedule(preset("Warren").rates))
+    assertEquals(counterfactuals.Warren.leversOtherAs[Schedule](IndividualIncomeTaxSchedule), incomeSchedule(preset("Warren").rates))
     assertEveryGroup(reformed(counterfactuals.Warren, IndividualIncomeTax), workbookIncomeTaxRate(preset("Warren")))
 
   test("income tax: every preset matches column W in every group (with the book's integration and crowd-out)"):
@@ -607,7 +607,7 @@ class SaezZucman2019Test extends munit.FunSuite:
     val c = SaezZucman2019Context(Map("ReplicateWorkbookForeignDoubleCount" -> false))
     val p = preset("book")
     val cf = c.Counterfactual(
-      leversSchedule = Map(c.IndividualIncomeTaxSchedule -> incomeSchedule(p.rates)),
+      leversOther    = Map(c.IndividualIncomeTaxSchedule -> incomeSchedule(p.rates)),
       leversBoolean  = Map(c.IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate -> true, c.IndividualIncomeTaxDividendsTaxedAtOrdinaryRate -> true,
         c.IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate -> true, c.CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates -> true,
         c.CorporateTaxDeployStrongerEnforcement -> true),
@@ -643,7 +643,7 @@ class SaezZucman2019Test extends munit.FunSuite:
       assertEqualsDouble(r(g), workbookIncomeTaxRate(p)(g), RateTolerance, s"group ${label(g)}")
 
   test("income tax: declares its inputs, so a model without the bracket schedule or the mtr data is rejected"):
-    intercept[IllegalArgumentException](mainModel.copy(leversSchedule = mainModel.leversSchedule - IndividualIncomeTaxSchedule))
+    intercept[IllegalArgumentException](mainModel.copy(baseline = mainModel.baseline.copy(leversOther = mainModel.baseline.leversOther - IndividualIncomeTaxSchedule)))
     intercept[IllegalArgumentException](mainModel.copy(dataDouble = mainModel.dataDouble - AvgOrdinaryMarginalTaxRate))
 
   test("income tax: runs after the national income tax and VAT, and a model ordering it earlier is rejected"):
@@ -683,7 +683,7 @@ class SaezZucman2019Test extends munit.FunSuite:
     Counterfactual(
       leversDouble   = iit.leversDouble ++ estateObama.leversDouble,
       leversBoolean  = iit.leversBoolean,
-      leversSchedule = iit.leversSchedule)
+      leversOther    = iit.leversOther)
 
   test("totals: the model now covers every tax in the workbook; the current total is effrate, the sum of databig H–M"):
     val t = total(mainModel.run(Counterfactual()), _.baselineTaxRate)
@@ -710,7 +710,7 @@ class SaezZucman2019Test extends munit.FunSuite:
 
   test("totals: Warren's full plan (counterfactuals.Warren) matches Z = I + Y + Q…X in every group"):
     val t = total(mainModel.run(counterfactuals.Warren), _.reformedTaxRate)
-    val warrenWealth = counterfactuals.Warren.leversSchedule(WealthTaxSchedule)
+    val warrenWealth = counterfactuals.Warren.leversOtherAs[Schedule](WealthTaxSchedule)
     def workbookTotal(g: Group) =
       col(g, "proptax")                                  // I
         + workbookPayrollRate(headTax = true)(g)         // Y

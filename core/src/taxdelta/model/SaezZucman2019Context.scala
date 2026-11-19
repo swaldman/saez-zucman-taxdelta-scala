@@ -44,7 +44,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     PropertyTaxShareOfIncome                              -> SaezZucman2019DataBridge.propertyTaxShareOfIncome,
     SalesTaxShareOfIncome                                 -> SaezZucman2019DataBridge.salesTaxShareOfIncome,
   )
-  val dataExcessCurve = Map(
+  val dataOther = Map(
     IncomeExcessCurve -> SaezZucman2019DataBridge.incomeExcessCurves,
 
     // we match the model's imputation of health for high levels not in the data,
@@ -66,16 +66,16 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
   // note that we do need to build out baseline scenario after defining the
   // potentially overridden parameters, because our baseline depends upon
   // the final parameterization of the model
-  object Baseline:
-    val leversBoolean =  Map(
+  val baseline = Baseline(
+    leversBoolean = Map(
       CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates                 -> false,
       CorporateTaxDeployStrongerEnforcement                             -> false,
       EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax          -> false,
       IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate                -> false,
       IndividualIncomeTaxDividendsTaxedAtOrdinaryRate                   -> false,
       IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate -> false,
-    )
-    val leversDouble = Map(
+    ),
+    leversDouble = Map(
       CorporateTaxProposedEffectiveRate                 -> parametersDouble(CorporateTaxCurrentDomesticReceipts) / parametersDouble(CorporateTaxCurrentDomesticProfits), // baseline rate, by definition
       EstateTaxAnticipatedAvoidanceRate                 -> parametersDouble(EstateTaxCurrentAvoidanceRate),    // no change at baseline
       EstateTaxProposedTopRate                          -> parametersDouble(EstateTaxCurrentStatutoryTopRate), // no change in baseline
@@ -84,14 +84,15 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
       SalesAndExciseTaxReduction                        -> 0.0d,
       ValueAddedTaxRate                                 -> 0.0d,
       WealthTaxEvasionRate                              -> 0.15d,
-    )
-    val leversSchedule = Map(
+    ),
+    leversOther = Map(
       IndividualIncomeTaxSchedule -> Schedule( // current law schedule
         IndexedSeq(0d, 77_000, 165_000, 315_000, 400_000, 600_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000, 25_000_000, 50_000_000),
         IndexedSeq(0.12, 0.22, 0.24, 0.32, 0.35, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37)
       ),
       WealthTaxSchedule -> Schedule.empty
     )
+  )
 
   val mainModel = Model(
     groups            = SaezZucman2019DataBridge.groups,
@@ -99,10 +100,8 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     parametersBoolean = parametersBoolean,
     parametersDouble  = parametersDouble,
     dataDouble        = dataDouble,
-    dataExcessCurve   = dataExcessCurve,
-    leversBoolean     = Baseline.leversBoolean,
-    leversDouble      = Baseline.leversDouble,
-    leversSchedule    = Baseline.leversSchedule,
+    dataOther         = dataOther,
+    baseline          = baseline,
     instruments       = List(
                           EstateTax           -> calculators.EstateTaxInstrument,
                           HealthInsuranceTax  -> calculators.HealthInsuranceTaxInstrument,

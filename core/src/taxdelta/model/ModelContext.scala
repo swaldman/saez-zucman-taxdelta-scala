@@ -1,5 +1,7 @@
 package taxdelta.model
 
+import scala.reflect.ClassTag
+
 abstract class ModelContext:
 
   trait InputLabel
@@ -7,16 +9,17 @@ abstract class ModelContext:
   /* Constants assumed by the model */
   type LabelParameterDouble  <: InputLabel
   type LabelParameterBoolean <: InputLabel
+  type LabelParameterOther   <: InputLabel
 
   /* Per-group data */
-  type LabelDataDouble      <: InputLabel
-  type LabelDataBoolean     <: InputLabel
-  type LabelDataExcessCurve <: InputLabel
+  type LabelDataDouble  <: InputLabel
+  type LabelDataBoolean <: InputLabel
+  type LabelDataOther   <: InputLabel
 
-  /* Lever values the model assumes but which change change in countefactuals */
-  type LabelLeverDouble   <: InputLabel
-  type LabelLeverBoolean  <: InputLabel
-  type LabelLeverSchedule <: InputLabel
+  /* Lever values the model assumes but which change in counterfactuals */
+  type LabelLeverDouble  <: InputLabel
+  type LabelLeverBoolean <: InputLabel
+  type LabelLeverOther   <: InputLabel
 
   type LabelInstrument
 
@@ -55,22 +58,35 @@ abstract class ModelContext:
       val d = r - b
       Instrument.Result(b,r,d)
 
+  sealed trait Scenario:
+    def leversBoolean : Map[LabelLeverBoolean,Boolean]
+    def leversDouble  : Map[LabelLeverDouble,Double]
+    def leversOther   : Map[LabelLeverOther,Any]
+    def leversOtherAs[T : ClassTag](llo : LabelLeverOther) : T = leversOther(llo).downcast[T]
+
+  object Baseline:
+    val empty = Baseline()
+  final case class Baseline(
+    leversBoolean    : Map[LabelLeverBoolean,Boolean] = Map.empty,
+    leversDouble     : Map[LabelLeverDouble,Double]   = Map.empty,
+    leversOther      : Map[LabelLeverOther,Any]  = Map.empty,
+  ) extends Scenario
+
   final case class Counterfactual(
-    leversDouble     : Map[LabelLeverDouble,Double]     = Map.empty,
-    leversBoolean    : Map[LabelLeverBoolean,Boolean]   = Map.empty,
-    leversSchedule   : Map[LabelLeverSchedule,Schedule] = Map.empty,
-  )
+    leversBoolean    : Map[LabelLeverBoolean,Boolean] = Map.empty,
+    leversDouble     : Map[LabelLeverDouble,Double]   = Map.empty,
+    leversOther      : Map[LabelLeverOther,Any]  = Map.empty,
+  ) extends Scenario
 
   final case class Model(
     groups            : Groups,
     parametersDouble  : Map[LabelParameterDouble,Double]                 = Map.empty,
     parametersBoolean : Map[LabelParameterBoolean,Boolean]               = Map.empty,
+    parametersOther   : Map[LabelParameterOther,Any]                     = Map.empty,
     dataDouble        : Map[LabelDataDouble,Map[Group,Double]]           = Map.empty,
     dataBoolean       : Map[LabelDataBoolean,Map[Group,Boolean]]         = Map.empty,
-    dataExcessCurve   : Map[LabelDataExcessCurve,Map[Group,ExcessCurve]] = Map.empty,
-    leversDouble      : Map[LabelLeverDouble,Double]                     = Map.empty,
-    leversBoolean     : Map[LabelLeverBoolean,Boolean]                   = Map.empty,
-    leversSchedule    : Map[LabelLeverSchedule,Schedule]                 = Map.empty,
+    dataOther         : Map[LabelDataOther,Map[Group,Any]]               = Map.empty,
+    baseline          : Baseline                                         = Baseline.empty,
     rebaser           : AverageIncomeRebaser                             = AverageIncomeRebaser.DontRebase,
     instruments       : List[Tuple2[LabelInstrument,Instrument]]         = List.empty
   ):
@@ -85,18 +101,23 @@ abstract class ModelContext:
 
     val requires : Set[InputLabel] = rebaser.requires ++ instruments.flatMap( (k,v) => v.requires )
     val offers   : Set[InputLabel] =
-      parametersDouble.keySet  ++
-      parametersBoolean.keySet ++
-      dataDouble.keySet        ++
-      dataBoolean.keySet       ++
-      dataExcessCurve.keySet   ++
-      leversDouble.keySet      ++
-      leversBoolean.keySet     ++
-      leversSchedule.keySet
+      parametersDouble.keySet       ++
+      parametersBoolean.keySet      ++
+      parametersOther.keySet        ++
+      dataDouble.keySet             ++
+      dataBoolean.keySet            ++
+      dataOther.keySet              ++
+      baseline.leversDouble.keySet  ++
+      baseline.leversBoolean.keySet ++
+      baseline.leversOther.keySet
 
-    def orPrefer( counterfactual : Option[Counterfactual] )( lld : LabelLeverDouble )   : Double   = counterfactual.fold( this.leversDouble(lld) )( cf => cf.leversDouble.getOrElse(lld,this.leversDouble(lld)) )
-    def orPrefer( counterfactual : Option[Counterfactual] )( llb : LabelLeverBoolean )  : Boolean  = counterfactual.fold( this.leversBoolean(llb) )( cf => cf.leversBoolean.getOrElse(llb,this.leversBoolean(llb)) )
-    def orPrefer( counterfactual : Option[Counterfactual] )( lls : LabelLeverSchedule ) : Schedule = counterfactual.fold( this.leversSchedule(lls) )( cf => cf.leversSchedule.getOrElse(lls,this.leversSchedule(lls)) )
+    def orPrefer( counterfactual : Option[Counterfactual] )( lld : LabelLeverDouble )  : Double   = counterfactual.fold( baseline.leversDouble(lld) )( cf => cf.leversDouble.getOrElse(lld,baseline.leversDouble(lld)) )
+    def orPrefer( counterfactual : Option[Counterfactual] )( llb : LabelLeverBoolean ) : Boolean  = counterfactual.fold( baseline.leversBoolean(llb) )( cf => cf.leversBoolean.getOrElse(llb,baseline.leversBoolean(llb)) )
+    def orPrefer( counterfactual : Option[Counterfactual] )( llo : LabelLeverOther )   : Any      = counterfactual.fold( baseline.leversOther(llo) )( cf => cf.leversOther.getOrElse(llo,baseline.leversOther(llo)) )
+
+    def parametersOtherAs[T : ClassTag](lpo: LabelParameterOther) : T = parametersOther(lpo).downcast[T]
+    def dataOtherAs[T : ClassTag](lpo: LabelDataOther)(g : Group) : T = dataOther(lpo)(g).downcast[T]
+    def orPreferAs[T : ClassTag]( counterfactual : Option[Counterfactual] )( llo : LabelLeverOther ) : T = orPrefer(counterfactual)(llo).downcast[T]
 
     private val duplicateInstrumentLabels : List[LabelInstrument] =
       instruments.map( _(0) )

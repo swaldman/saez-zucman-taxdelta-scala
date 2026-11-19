@@ -29,13 +29,13 @@ class SaezZucman2019Counterfactuals[C <: SaezZucman2019Context & Singleton](val 
       ReductionOfEmployerSponsoredPrivateHealthPremiums -> 1.00d, // single-payer!
       WealthTaxEvasionRate                              -> 0.15d,
     )
-    val leversSchedule = Map(
+    val leversOther = Map(
       IndividualIncomeTaxSchedule -> warrenIncomeTaxSchedule,
       WealthTaxSchedule           -> warrenWealthTaxSchedule,
     )
     Counterfactual(
       leversBoolean = leversBoolean,
       leversDouble = leversDouble,
-      leversSchedule = leversSchedule
+      leversOther = leversOther
     )
 

@@ -2,9 +2,16 @@ package taxdelta.model
 
 import scala.collection.immutable
 
-trait Parameter[L]:
-  def label : L
-  def value : Any
+import scala.reflect.ClassTag
+
+// active check, because asInstanceOf[T] can't test at runtime
+extension (a: Any) def downcast[T : ClassTag]: T =
+  val ct = summon[ClassTag[T]]
+  a match
+    case ct(t) => t
+    case _ =>
+      val found = if a == null then "null" else a.getClass.getName
+      throw new ClassCastException(s"Expected ${ct.runtimeClass.getName}, found $found")
 
 sealed trait Group:
   def size          : Int

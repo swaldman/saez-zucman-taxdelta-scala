@@ -40,7 +40,7 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case FiscalDividends
     case FiscalIncomeIncludingCapitalGains
 
-  enum LDExcessCurve extends InputLabel:
+  enum LDOther extends InputLabel:
     case IncomeExcessCurve
     case WealthExcessCurve
 
@@ -63,7 +63,7 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case SalesAndExciseTaxReduction // existing tax rescaled by (1 - SalesAndExciseTaxReduction)
     case WealthTaxEvasionRate
 
-  enum LLSchedule extends InputLabel:
+  enum LLOther extends InputLabel:
     case IndividualIncomeTaxSchedule
     case WealthTaxSchedule
 
@@ -79,16 +79,25 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case ValueAddedTax
     case WealthTax
 
-  export LPBoolean.*, LPDouble.*, LDDouble.*, LDExcessCurve.*, LLBoolean.*, LLDouble.*, LLSchedule.*, LInstrument.*
+  export LPBoolean.*, LPDouble.*, LDDouble.*, LDOther.*, LLBoolean.*, LLDouble.*, LLOther.*, LInstrument.*
 
   override type LabelParameterBoolean = LPBoolean
   override type LabelParameterDouble  = LPDouble
   override type LabelDataDouble       = LDDouble
-  override type LabelDataExcessCurve  = LDExcessCurve
+  override type LabelDataOther        = LDOther
   override type LabelLeverBoolean     = LLBoolean
   override type LabelLeverDouble      = LLDouble
-  override type LabelLeverSchedule    = LLSchedule
+  override type LabelLeverOther       = LLOther
   override type LabelInstrument       = LInstrument
+
+  private def toParameterBoolean( key : String, value : Any ) : Option[Tuple2[LPBoolean,Boolean]] = 
+    value match
+      case vb : Boolean => // we can't rely on exception from cast when running under JS
+        try
+          Some( Tuple2( LPBoolean.valueOf(key), vb ) )
+        catch
+          case NonFatal(t) => None
+      case _ => None
 
   private def toParameterDouble( key : String, value : Any ) : Option[Tuple2[LPDouble,Double]] =
     value match
@@ -113,14 +122,15 @@ abstract class SaezZucman2019Labels extends ModelContext:
           case NonFatal(t) => None
       case _ => None
 
-  private def toParameterBoolean( key : String, value : Any ) : Option[Tuple2[LPBoolean,Boolean]] = 
-    value match
-      case vb : Boolean => // we can't rely on exception from cast when running under JS
-        try
-          Some( Tuple2( LPBoolean.valueOf(key), vb ) )
-        catch
-          case NonFatal(t) => None
-      case _ => None
+/*
+  private def toParameterOther( key : String, value : Any ) : Option[Tuple2[LPOther,Other]] =
+    try
+      Some( Tuple2( LPOther.valueOf(key), value ) )
+    catch
+      case NonFatal(t) => None
+ */
 
-  protected def findOverrideParametersDouble ( parameterOverrides : Map[String,Any] ) : Map[LPDouble,Double]   = parameterOverrides.map( toParameterDouble ).flatten.toMap
   protected def findOverrideParametersBoolean( parameterOverrides : Map[String,Any] ) : Map[LPBoolean,Boolean] = parameterOverrides.map( toParameterBoolean ).flatten.toMap
+  protected def findOverrideParametersDouble ( parameterOverrides : Map[String,Any] ) : Map[LPDouble,Double]   = parameterOverrides.map( toParameterDouble ).flatten.toMap
+  //protected def findOverrideParametersOther  ( parameterOverrides : Map[String,Any] ) : Map[LPDouble,Double]   = parameterOverrides.map( toParameterOther ).flatten.toMap
+

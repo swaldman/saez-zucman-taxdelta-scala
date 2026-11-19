@@ -167,9 +167,9 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       val afterEvasion = (1 - evasionRate) * taxesDue;
       afterEvasion / rebasedAverageIncome
     protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
-      val schedule = model.orPrefer(counterfactual)(WealthTaxSchedule)
+      val schedule = model.orPreferAs[Schedule](counterfactual)(WealthTaxSchedule)
       val evasionRate = model.orPrefer(counterfactual)(WealthTaxEvasionRate)
-      computeTaxRate( schedule, model.dataExcessCurve(WealthExcessCurve)(g), evasionRate, model.rebasedAverageIncome(g) )
+      computeTaxRate( schedule, model.dataOtherAs[ExcessCurve](WealthExcessCurve)(g), evasionRate, model.rebasedAverageIncome(g) )
     override val requires = Set(WealthTaxSchedule,WealthExcessCurve,WealthTaxEvasionRate)
 
   object IndividualIncomeTaxInstrument extends Instrument.Unified:
@@ -358,7 +358,7 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       crowdOutFactor * math.max(effectiveIncomeTaxShareOfIncome + correctedChangeAsShareOfIncome, 0d)
 
     protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
-      val baselineTaxSchedule                                               = model.leversSchedule(IndividualIncomeTaxSchedule) // we don't treat this as a lever though, ans shift with counterfactual. we always want the baseline schedule here
+      val baselineTaxSchedule                                               = model.baseline.leversOtherAs[Schedule](IndividualIncomeTaxSchedule) // we don't treat this as a lever though, ans shift with counterfactual. we always want the baseline schedule here
       val avgOrdinaryMarginalTaxRate                                        = model.dataDouble(AvgOrdinaryMarginalTaxRate)( g )
       val avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent             = model.dataDouble(AvgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent)( g )
       val closelyHeldCorpTaxRetainedEarningsAtOrdinaryRates                 = model.orPrefer(counterfactual)(CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates)
@@ -377,12 +377,12 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       val fiscalDividends                                                   = model.dataDouble(FiscalDividends)( g )
       val fiscalIncomeIncludingCapitalGains                                 = model.dataDouble(FiscalIncomeIncludingCapitalGains)( g )
       val fiscalCapGainsAndDividendsTotal                                   = SaezZucman2019DataBridge.totalGainsAndDividends
-      val incomeExcessCurve                                                 = model.dataExcessCurve(IncomeExcessCurve)( g )
+      val incomeExcessCurve                                                 = model.dataOtherAs[ExcessCurve](IncomeExcessCurve)( g )
       val individualIncomeTaxCapitalGainsTaxedAtOrdinaryRate                = model.orPrefer(counterfactual)(IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate)
       val individualIncomeTaxDividendsTaxedAtOrdinaryRate                   = model.orPrefer(counterfactual)(IndividualIncomeTaxDividendsTaxedAtOrdinaryRate) // ignored if IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate is true
       val individualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate = model.orPrefer(counterfactual)(IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate) // if true IndividualIncomeTaxDividendsTaxedAtOrdinaryRate is ignored
       val replicateWorkbookForeignDoubleCount                               = model.parametersBoolean(ReplicateWorkbookForeignDoubleCount)
-      val individualIncomeTaxSchedule                                       = model.orPrefer(counterfactual)(IndividualIncomeTaxSchedule)
+      val individualIncomeTaxSchedule                                       = model.orPreferAs[Schedule](counterfactual)(IndividualIncomeTaxSchedule)
       val rebasedAverageIncomeForGroup                                      = model.rebasedAverageIncome( g )
       computeTaxRate(
         baselineTaxSchedule                                               = baselineTaxSchedule,
