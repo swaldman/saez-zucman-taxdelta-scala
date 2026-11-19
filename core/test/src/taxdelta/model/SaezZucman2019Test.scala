@@ -19,7 +19,7 @@ class SaezZucman2019Test extends munit.FunSuite:
   /** The same model, with private health premiums counted as a tax (interface C16 = "yes"). */
   private val healthShown = SaezZucman2019Context(Map("CountPrivateHealthPremiumsAsTax" -> true))
 
-  private val groups = model.groups.toSeq
+  private val groups = mainModel.groups.toSeq
 
   private def col(g: Group, name: String): Double = Databig.doubleValue(SaezZucman2019DataBridge.rowColValues(g), name)
   private def label(g: Group): String = SaezZucman2019DataBridge.rowColValues(g).trim
@@ -100,13 +100,13 @@ class SaezZucman2019Test extends munit.FunSuite:
   // ---- Helpers -----------------------------------------------------------------------------------------------
 
   private def reformed(cf: Counterfactual, instrument: LInstrument): Map[Group, Double] =
-    model.run(cf)(instrument).map((g, r) => (g, r.reformedTaxRate))
+    mainModel.run(cf)(instrument).map((g, r) => (g, r.reformedTaxRate))
 
   private def baseline(instrument: LInstrument): Map[Group, Double] =
-    model.run(Counterfactual())(instrument).map((g, r) => (g, r.baselineTaxRate))
+    mainModel.run(Counterfactual())(instrument).map((g, r) => (g, r.baselineTaxRate))
 
   private def delta(cf: Counterfactual, instrument: LInstrument): Map[Group, Double] =
-    model.run(cf)(instrument).map((g, r) => (g, r.deltaTaxRate))
+    mainModel.run(cf)(instrument).map((g, r) => (g, r.deltaTaxRate))
 
   private def assertEveryGroup(actual: Map[Group, Double], expected: Group => Double)(using munit.Location): Unit =
     for g <- groups do
@@ -120,19 +120,19 @@ class SaezZucman2019Test extends munit.FunSuite:
 
   test("the model has 128 groups: 127 percentile groups and the top 400"):
     assertEquals(groups.length, 128)
-    assertEquals(label(model.groups.topGroup), "400")
+    assertEquals(label(mainModel.groups.topGroup), "400")
 
   test("rebased income approximates the workbook's denom to within 2e-4 relative"):
     for g <- groups do
-      val rel = math.abs(model.rebasedAverageIncome(g) / denom(g) - 1)
-      assert(rel < 2e-4, s"group ${label(g)}: rebased ${model.rebasedAverageIncome(g)} vs denom ${denom(g)}")
+      val rel = math.abs(mainModel.rebasedAverageIncome(g) / denom(g) - 1)
+      assert(rel < 2e-4, s"group ${label(g)}: rebased ${mainModel.rebasedAverageIncome(g)} vs denom ${denom(g)}")
 
   test("the hard-coded average sales-tax rate (calculatorbig!F137) matches the data"):
-    assertEqualsDouble(model.parametersDouble(AverageSalesTaxShareOfIncome), workbookAverageSalesTaxRate, 1e-12)
+    assertEqualsDouble(mainModel.parametersDouble(AverageSalesTaxShareOfIncome), workbookAverageSalesTaxRate, 1e-12)
 
   test("above $1bn, wealth excesses are imputed for the top 400 only"):
     for g <- groups do
-      val curve = model.dataExcessCurve(WealthExcessCurve)(g)
+      val curve = mainModel.dataExcessCurve(WealthExcessCurve)(g)
       val ex = workbookWealthExcess(g)
       for t <- wealthGrid do
         assertEqualsDouble(curve.excessFromThreshold(t), ex(t), 1e-6, s"group ${label(g)}, threshold $t")
@@ -141,15 +141,15 @@ class SaezZucman2019Test extends munit.FunSuite:
 
   test("instruments run in order and all report results"):
     val all = List[LInstrument](EstateTax, HealthInsuranceTax, NationalIncomeTax, PayrollTax, PropertyTax, SalesAndExciseTax, ValueAddedTax, WealthTax, CorporateTax, IndividualIncomeTax)
-    assertEquals(model.run(Counterfactual()).keySet, all.toSet)
-    assertEquals(model.instruments.map(_._1), all)
+    assertEquals(mainModel.run(Counterfactual()).keySet, all.toSet)
+    assertEquals(mainModel.instruments.map(_._1), all)
 
   test("the baseline levies none of the three new taxes"):
-    for lbl <- List[LInstrument](NationalIncomeTax, ValueAddedTax, WealthTax); (g, r) <- model.run(Counterfactual())(lbl) do
+    for lbl <- List[LInstrument](NationalIncomeTax, ValueAddedTax, WealthTax); (g, r) <- mainModel.run(Counterfactual())(lbl) do
       assertEqualsDouble(r.baselineTaxRate, 0.0, 0.0, s"$lbl baseline, group ${label(g)}")
 
   test("an empty counterfactual changes nothing"):
-    for (lbl, byGroup) <- model.run(Counterfactual()); (g, r) <- byGroup do
+    for (lbl, byGroup) <- mainModel.run(Counterfactual()); (g, r) <- byGroup do
       assertEqualsDouble(r.reformedTaxRate, r.baselineTaxRate, 0.0, s"$lbl, group ${label(g)}")
       assertEqualsDouble(r.deltaTaxRate, 0.0, 0.0, s"$lbl delta, group ${label(g)}")
 
@@ -158,19 +158,19 @@ class SaezZucman2019Test extends munit.FunSuite:
     intercept[IllegalArgumentException](SaezZucman2019Context(Map("ConsumerIncidenceShare" -> "0.7")))
     intercept[IllegalArgumentException](SaezZucman2019Context(Map("CountPrivateHealthPremiumsAsTax" -> 1.0)))
     intercept[IllegalArgumentException](SaezZucman2019Context(Map("ConsumerIncidenceShare" -> true)))
-    assertEquals(model.parametersBoolean(CountPrivateHealthPremiumsAsTax), false)
-    assertEquals(healthShown.model.parametersBoolean(healthShown.CountPrivateHealthPremiumsAsTax), true)
+    assertEquals(mainModel.parametersBoolean(CountPrivateHealthPremiumsAsTax), false)
+    assertEquals(healthShown.mainModel.parametersBoolean(healthShown.CountPrivateHealthPremiumsAsTax), true)
     val c = SaezZucman2019Context(Map("ConsumerIncidenceShare" -> 0.7))
-    assertEquals(c.model.parametersDouble(c.ConsumerIncidenceShare), 0.7)
+    assertEquals(c.mainModel.parametersDouble(c.ConsumerIncidenceShare), 0.7)
 
   test("parameter overrides: integer and other numeric values are accepted for double parameters on both platforms"):
     for v <- List[Any](1, 1L, 1.toShort, 1.toByte, 1.0f, BigInt(1), BigDecimal(1)) do
       val c = SaezZucman2019Context(Map("EmployerShareOfPrivateHealthPremiums" -> v))
-      assertEquals(c.model.parametersDouble(c.EmployerShareOfPrivateHealthPremiums), 1.0, s"value $v: ${v.getClass}")
+      assertEquals(c.mainModel.parametersDouble(c.EmployerShareOfPrivateHealthPremiums), 1.0, s"value $v: ${v.getClass}")
 
   test("defaults match the saved workbook: premiums not shown as a tax, head-tax share 0.55"):
-    assertEquals(model.parametersBoolean(CountPrivateHealthPremiumsAsTax), false)
-    assertEquals(model.parametersDouble(EmployerShareOfPrivateHealthPremiums), 0.55)
+    assertEquals(mainModel.parametersBoolean(CountPrivateHealthPremiumsAsTax), false)
+    assertEquals(mainModel.parametersDouble(EmployerShareOfPrivateHealthPremiums), 0.55)
 
   // ---- Wealth tax (column Q) ---------------------------------------------------------------------------------
 
@@ -204,7 +204,7 @@ class SaezZucman2019Test extends munit.FunSuite:
   private def salesReduction(r: Double) = Counterfactual(leversDouble = Map(SalesAndExciseTaxReduction -> r))
 
   test("sales and excise: the baseline lever is no reduction (interface C15), and the baseline is salestax exactly"):
-    assertEquals(model.leversDouble(SalesAndExciseTaxReduction), 0.0)
+    assertEquals(mainModel.leversDouble(SalesAndExciseTaxReduction), 0.0)
     for (g, b) <- baseline(SalesAndExciseTax) do assertEqualsDouble(b, col(g, "salestax"), 0.0, s"group ${label(g)}")
 
   test("sales and excise: the book plan's 50% reduction (interface G15) halves every group"):
@@ -219,17 +219,17 @@ class SaezZucman2019Test extends munit.FunSuite:
 
   test("sales and excise: the aggregate is F137 · (1 − reduction)"):
     for red <- List(0.0, 0.5, 1.0, -0.2) do
-      assertEqualsDouble(aggregate(reformed(salesReduction(red), SalesAndExciseTax)), model.parametersDouble(AverageSalesTaxShareOfIncome) * (1 - red), 1e-12, s"reduction $red")
+      assertEqualsDouble(aggregate(reformed(salesReduction(red), SalesAndExciseTax)), mainModel.parametersDouble(AverageSalesTaxShareOfIncome) * (1 - red), 1e-12, s"reduction $red")
 
   test("sales and excise: no other instrument depends on the reduction (no crowd-out, unlike the VAT)"):
-    val base = model.run(Counterfactual())
-    val cut  = model.run(salesReduction(0.5))
+    val base = mainModel.run(Counterfactual())
+    val cut  = mainModel.run(salesReduction(0.5))
     for lbl <- base.keySet - SalesAndExciseTax; g <- groups do
       assertEqualsDouble(cut(lbl)(g).reformedTaxRate, base(lbl)(g).reformedTaxRate, 0.0, s"$lbl, group ${label(g)}")
 
   test("sales and excise: declares its inputs, so a model without the salestax data or the reduction lever is rejected"):
-    intercept[IllegalArgumentException](model.copy(dataDouble = model.dataDouble - SalesTaxShareOfIncome))
-    intercept[IllegalArgumentException](model.copy(leversDouble = model.leversDouble - SalesAndExciseTaxReduction))
+    intercept[IllegalArgumentException](mainModel.copy(dataDouble = mainModel.dataDouble - SalesTaxShareOfIncome))
+    intercept[IllegalArgumentException](mainModel.copy(leversDouble = mainModel.leversDouble - SalesAndExciseTaxReduction))
 
   // ---- VAT (column S) ----------------------------------------------------------------------------------------
 
@@ -242,12 +242,12 @@ class SaezZucman2019Test extends munit.FunSuite:
   test("VAT at 10%: regressive, from about 8.8% of income at the bottom to about 2.2% for the top 400"):
     val r = reformed(vat10, ValueAddedTax)
     assertEqualsDouble(r(groups.head), 0.0883, 1e-4)
-    assertEqualsDouble(r(model.groups.topGroup), 0.0222, 1e-4)
+    assertEqualsDouble(r(mainModel.groups.topGroup), 0.0222, 1e-4)
 
   // ---- Private health insurance (columns L, T) ---------------------------------------------------------------
 
   private def shownRun(cf: healthShown.Counterfactual): Map[Group, healthShown.Instrument.Result] =
-    healthShown.model.run(cf)(healthShown.HealthInsuranceTax)
+    healthShown.mainModel.run(cf)(healthShown.HealthInsuranceTax)
 
   test("health insurance, shown as a tax: the baseline is healthtax (column L) in every group"):
     assertEveryGroup(shownRun(healthShown.Counterfactual()).map((g, r) => (g, r.baselineTaxRate)), workbookHealthRate(shown = true, reduction = 0.0))
@@ -264,10 +264,10 @@ class SaezZucman2019Test extends munit.FunSuite:
   test("health insurance, shown: premiums peak in the middle (about 12.9% at P50) and are negligible for the top 400"):
     val b = shownRun(healthShown.Counterfactual()).map((g, r) => (g, r.baselineTaxRate))
     assertEqualsDouble(b(group("50")), 0.1287, 1e-4)
-    assert(b(model.groups.topGroup) < 1e-4)
+    assert(b(mainModel.groups.topGroup) < 1e-4)
 
   test("health insurance, not shown (the default, interface C16 = \"no\"): zero before and after any reform"):
-    for (g, r) <- model.run(counterfactuals.Warren)(HealthInsuranceTax) do
+    for (g, r) <- mainModel.run(counterfactuals.Warren)(HealthInsuranceTax) do
       assertEqualsDouble(r.baselineTaxRate, 0.0, 0.0, s"group ${label(g)}")
       assertEqualsDouble(r.reformedTaxRate, 0.0, 0.0, s"group ${label(g)}")
 
@@ -285,7 +285,7 @@ class SaezZucman2019Test extends munit.FunSuite:
   test("payroll: the head tax is about 7 points at P50 and negligible for the top 400"):
     val d = delta(counterfactuals.Warren, PayrollTax)
     assertEqualsDouble(d(group("50")), 0.0708, 1e-4)
-    assert(d(model.groups.topGroup) < 1e-4)
+    assert(d(mainModel.groups.topGroup) < 1e-4)
 
   test("payroll: plans without the head tax leave payroll unchanged"):
     assertEveryGroup(delta(nit7, PayrollTax), _ => 0.0)
@@ -293,19 +293,19 @@ class SaezZucman2019Test extends munit.FunSuite:
 
   test("Warren, premiums shown: health plus payroll together cut the middle's rate by 0.45 × healthtax"):
     val h = shownRun(healthShown.counterfactuals.Warren).map((g, r) => (g, r.deltaTaxRate))
-    val p = healthShown.model.run(healthShown.counterfactuals.Warren)(healthShown.PayrollTax).map((g, r) => (g, r.deltaTaxRate))
+    val p = healthShown.mainModel.run(healthShown.counterfactuals.Warren)(healthShown.PayrollTax).map((g, r) => (g, r.deltaTaxRate))
     assertEveryGroup(groups.map(g => (g, h(g) + p(g))).toMap, g => -0.45 * col(g, "healthtax"))
 
   /* As in the workbook, Y8 adds the head tax whatever interface C16 says, so with premiums not shown as a tax,
    * Warren's head tax appears without the premiums it replaces (methodology §8.8, questions §7.3). */
   test("payroll: the head tax applies whether or not premiums are shown as a tax, as in the workbook"):
     assertEveryGroup(reformed(counterfactuals.Warren, PayrollTax), workbookPayrollRate(headTax = true))
-    val shown = healthShown.model.run(healthShown.counterfactuals.Warren)(healthShown.PayrollTax)
+    val shown = healthShown.mainModel.run(healthShown.counterfactuals.Warren)(healthShown.PayrollTax)
     assertEveryGroup(shown.map((g, r) => (g, r.reformedTaxRate)), workbookPayrollRate(headTax = true))
 
   test("payroll: the head tax scales with the EmployerShareOfPrivateHealthPremiums parameter"):
     val c = SaezZucman2019Context(Map("EmployerShareOfPrivateHealthPremiums" -> 1.0))
-    for (g, r) <- c.model.run(c.counterfactuals.Warren)(c.PayrollTax) do
+    for (g, r) <- c.mainModel.run(c.counterfactuals.Warren)(c.PayrollTax) do
       assertEqualsDouble(r.deltaTaxRate, col(g, "healthtax"), 1e-15, s"group ${label(g)}")
 
   // ---- Estate tax (column U) ---------------------------------------------------------------------------------
@@ -320,8 +320,8 @@ class SaezZucman2019Test extends munit.FunSuite:
   private val estateButtigieg = estate(0.55, 0.30)
 
   test("estate tax: current law is a 40% top rate with 60% avoidance (interface C40, C39)"):
-    assertEquals(model.parametersDouble(EstateTaxCurrentStatutoryTopRate), 0.4)
-    assertEquals(model.parametersDouble(EstateTaxCurrentAvoidanceRate), 0.6)
+    assertEquals(mainModel.parametersDouble(EstateTaxCurrentStatutoryTopRate), 0.4)
+    assertEquals(mainModel.parametersDouble(EstateTaxCurrentAvoidanceRate), 0.6)
 
   test("estate tax: the baseline is estatetax (column J) in every group"):
     assertEveryGroup(baseline(EstateTax), g => col(g, "estatetax"))
@@ -353,11 +353,11 @@ class SaezZucman2019Test extends munit.FunSuite:
       assertEqualsDouble(b(g), 0.0, 0.0, s"group ${label(g)}")
     assert(b(group("99.3")) > 0)
     assertEqualsDouble(b(group("99.9")), 0.00673, 1e-5)
-    assertEqualsDouble(b(model.groups.topGroup), 0.01114, 1e-5)
+    assertEqualsDouble(b(mainModel.groups.topGroup), 0.01114, 1e-5)
 
   test("estate tax: overriding the current-law parameters moves the baseline levers with them"):
     val c = SaezZucman2019Context(Map("EstateTaxCurrentStatutoryTopRate" -> 0.5, "EstateTaxCurrentAvoidanceRate" -> 0.5))
-    for (g, r) <- c.model.run(c.Counterfactual())(c.EstateTax) do
+    for (g, r) <- c.mainModel.run(c.Counterfactual())(c.EstateTax) do
       assertEqualsDouble(r.baselineTaxRate, col(g, "estatetax"), 1e-15, s"group ${label(g)}")
       assertEqualsDouble(r.deltaTaxRate, 0.0, 0.0, s"group ${label(g)}")
 
@@ -382,12 +382,12 @@ class SaezZucman2019Test extends munit.FunSuite:
   )
 
   test("corporate tax: current law is $210bn on $1,308bn of US profits plus $8bn on foreign profits; $96bn if reformed"):
-    assertEquals(model.parametersDouble(CorporateTaxCurrentDomesticProfits), 1308.0)
-    assertEquals(model.parametersDouble(CorporateTaxCurrentDomesticReceipts), 210.0)
-    assertEquals(model.parametersDouble(CorporateTaxCurrentForeignReceipts), 8.0)
-    assertEquals(model.parametersDouble(CorporateTaxForeignReceiptsUnderStrongerEnforcement), 96.0)
-    assertEquals(model.leversDouble(CorporateTaxProposedEffectiveRate), 210.0 / 1308) // interface C43
-    assertEquals(model.leversBoolean(CorporateTaxDeployStrongerEnforcement), false)  // interface C44
+    assertEquals(mainModel.parametersDouble(CorporateTaxCurrentDomesticProfits), 1308.0)
+    assertEquals(mainModel.parametersDouble(CorporateTaxCurrentDomesticReceipts), 210.0)
+    assertEquals(mainModel.parametersDouble(CorporateTaxCurrentForeignReceipts), 8.0)
+    assertEquals(mainModel.parametersDouble(CorporateTaxForeignReceiptsUnderStrongerEnforcement), 96.0)
+    assertEquals(mainModel.leversDouble(CorporateTaxProposedEffectiveRate), 210.0 / 1308) // interface C43
+    assertEquals(mainModel.leversBoolean(CorporateTaxDeployStrongerEnforcement), false)  // interface C44
 
   test("corporate tax: the baseline is corptax (column H) in every group, exactly"):
     assertEveryGroup(baseline(CorporateTax), g => col(g, "corptax"))
@@ -400,14 +400,14 @@ class SaezZucman2019Test extends munit.FunSuite:
     assertEveryGroup(reformed(counterfactuals.Warren, CorporateTax), workbookCorporateRate(0.30, true))
 
   test("corporate tax: declares all its inputs, so a model without the corptax data is rejected"):
-    intercept[IllegalArgumentException](model.copy(dataDouble = model.dataDouble - CorporateTaxShareOfIncome))
+    intercept[IllegalArgumentException](mainModel.copy(dataDouble = mainModel.dataDouble - CorporateTaxShareOfIncome))
 
   test("corporate tax: runs after the national income tax and VAT, and a model ordering it earlier is rejected"):
-    val order = model.instruments.map(_._1)
+    val order = mainModel.instruments.map(_._1)
     assert(order.indexOf(CorporateTax) > order.indexOf(NationalIncomeTax))
     assert(order.indexOf(CorporateTax) > order.indexOf(ValueAddedTax))
-    val corp = model.instruments.find(_._1 == CorporateTax).get
-    intercept[IllegalArgumentException](model.copy(instruments = corp :: model.instruments.filterNot(_ == corp)))
+    val corp = mainModel.instruments.find(_._1 == CorporateTax).get
+    intercept[IllegalArgumentException](mainModel.copy(instruments = corp :: mainModel.instruments.filterNot(_ == corp)))
 
   test("corporate tax: every preset matches column V in every group (with the book's and Sanders' crowd-out)"):
     for (name, rate, mn, nit) <- corporatePresets do
@@ -431,12 +431,12 @@ class SaezZucman2019Test extends munit.FunSuite:
   test("corporate tax: the Obama preset matches cached V8 (P0–1), V135 (top 400) and V137 (aggregate)"):
     val r = reformed(corporate(0.25, false), CorporateTax)
     assertEqualsDouble(r(groups.head), 1.5595917795024334e-3, 1e-15)
-    assertEqualsDouble(r(model.groups.topGroup), 7.803074152576267e-2, 1e-15)
+    assertEqualsDouble(r(mainModel.groups.topGroup), 7.803074152576267e-2, 1e-15)
     assertEqualsDouble(aggregate(r), 1.9280540090372361e-2, 1e-15)
 
   test("corporate tax: crowd-out uses the reformed NIT and VAT rates, (1 − R − S), for a 7% NIT and a 10% VAT"):
     val cf = corporate(210.0 / 1308, false, nit = 0.07, vat = 0.10)
-    val out = model.run(cf)
+    val out = mainModel.run(cf)
     for g <- groups do
       val expected = (1 - out(NationalIncomeTax)(g).reformedTaxRate - out(ValueAddedTax)(g).reformedTaxRate) * col(g, "corptax")
       assertEqualsDouble(out(CorporateTax)(g).reformedTaxRate, expected, 1e-15, s"group ${label(g)}")
@@ -519,17 +519,17 @@ class SaezZucman2019Test extends munit.FunSuite:
     crowdOut * math.max(col(g, "ditax") + (ch + ci) / denom(g), 0)
 
   test("income tax: the baseline schedule is current law (interface C51:C62) and every treatment switch is off"):
-    assertEquals(model.leversSchedule(IndividualIncomeTaxSchedule), incomeSchedule(currentLawRates))
+    assertEquals(mainModel.leversSchedule(IndividualIncomeTaxSchedule), incomeSchedule(currentLawRates))
     for l <- List(IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate, IndividualIncomeTaxDividendsTaxedAtOrdinaryRate,
                   IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate, CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates) do
-      assertEquals(model.leversBoolean(l), false, l.toString)
-    assertEquals(model.parametersDouble(CorporateTaxCurrentStateReceipts), 60.0)
-    assertEquals(model.parametersDouble(CloselyHeldCorpTotalRetainedEarnings), 166.6)
-    assertEquals(model.parametersBoolean(ReplicateWorkbookForeignDoubleCount), true)
+      assertEquals(mainModel.leversBoolean(l), false, l.toString)
+    assertEquals(mainModel.parametersDouble(CorporateTaxCurrentStateReceipts), 60.0)
+    assertEquals(mainModel.parametersDouble(CloselyHeldCorpTotalRetainedEarnings), 166.6)
+    assertEquals(mainModel.parametersBoolean(ReplicateWorkbookForeignDoubleCount), true)
 
   test("income tax: the taxable-income excess curves return the taxinc_ columns at their thresholds"):
     for g <- groups; k <- incomeThresholds.indices do
-      assertEqualsDouble(model.dataExcessCurve(IncomeExcessCurve)(g).excessFromThreshold(incomeThresholds(k)), col(g, taxincCols(k)), 0.0,
+      assertEqualsDouble(mainModel.dataExcessCurve(IncomeExcessCurve)(g).excessFromThreshold(incomeThresholds(k)), col(g, taxincCols(k)), 0.0,
         s"group ${label(g)}, threshold ${incomeThresholds(k)}")
 
   test("income tax: national gains plus dividends (Σ nb · (fikgi + fidiv)) are totalled without overflow, $1,145bn"):
@@ -542,14 +542,14 @@ class SaezZucman2019Test extends munit.FunSuite:
   test("income tax: the Obama preset matches cached W8 (P0–1), W135 (top 400) and W137 (aggregate)"):
     val r = reformed(incomeTaxCounterfactual(preset("Obama")), IndividualIncomeTax)
     assertEqualsDouble(r(groups.head), 4.1187257339462043e-3, RateTolerance)
-    assertEqualsDouble(r(model.groups.topGroup), 9.4781867571797962e-2, RateTolerance)
+    assertEqualsDouble(r(mainModel.groups.topGroup), 9.4781867571797962e-2, RateTolerance)
     assertEqualsDouble(aggregate(r), 0.12189620155133546, 1e-6)
 
   test("income tax: the Obama preset's bracket change at P0–1 is CE8 = $12.90 and, with the preferences kept, CI8 = $12.79"):
     val g = groups.head
     assertEqualsDouble(workbookBracketChange(preset("Obama").rates)(g), 12.9, 1e-9)
     val r = reformed(incomeTaxCounterfactual(preset("Obama")), IndividualIncomeTax)(g)
-    assertEqualsDouble((r - col(g, "ditax")) * model.rebasedAverageIncome(g), 12.790717375630869, 1e-6)
+    assertEqualsDouble((r - col(g, "ditax")) * mainModel.rebasedAverageIncome(g), 12.790717375630869, 1e-6)
 
   test("income tax: the Warren worked example (methodology §10.2), P99.997–99.998, W = 0.36360"):
     assertEqualsDouble(reformed(counterfactuals.Warren, IndividualIncomeTax)(group("99.997")), 0.36360, RateTolerance)
@@ -580,12 +580,12 @@ class SaezZucman2019Test extends munit.FunSuite:
     val p = IncomeTaxPreset("gains only", currentLawRates, true, false, false, 210.0 / 1308, false, 0.0)
     val r = reformed(incomeTaxCounterfactual(p), IndividualIncomeTax)
     for g <- groups do
-      val expected = math.max(col(g, "ditax") + col(g, "mtrextra") * col(g, "fikgi") / model.rebasedAverageIncome(g), 0)
+      val expected = math.max(col(g, "ditax") + col(g, "mtrextra") * col(g, "fikgi") / mainModel.rebasedAverageIncome(g), 0)
       assertEqualsDouble(r(g), expected, 1e-15, s"group ${label(g)}")
 
   test("income tax: with current brackets, kept preferences leave every group's rate unchanged, whatever the corporate levers"):
     val p = IncomeTaxPreset("nothing", currentLawRates, false, false, false, 0.30, true, 0.0)
-    for (g, r) <- model.run(incomeTaxCounterfactual(p))(IndividualIncomeTax) do
+    for (g, r) <- mainModel.run(incomeTaxCounterfactual(p))(IndividualIncomeTax) do
       assertEqualsDouble(r.deltaTaxRate, 0.0, 0.0, s"group ${label(g)}")
 
   test("income tax: without the double count and with no corporate reform, the credit rate equals the gross-up rate (τ_p = τ_c)"):
@@ -593,13 +593,13 @@ class SaezZucman2019Test extends munit.FunSuite:
     val p = IncomeTaxPreset("integration only", currentLawRates, false, false, true, 210.0 / 1308, false, 0.0)
     val cf = c.Counterfactual(
       leversBoolean = Map(c.IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate -> true, c.CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates -> true))
-    val r = c.model.run(cf)(c.IndividualIncomeTax)
+    val r = c.mainModel.run(cf)(c.IndividualIncomeTax)
     val tau = 158.0 / 1308
     for g <- groups do
       val (div, mtr) = (col(g, "fidiv"), col(g, "mtr"))
       val re = (col(g, "fikgi") + div) * 166.6e9 / workbookTotalGainsAndDividends
       val change = (mtr - tau) * (div + re) / (1 - tau) - math.min(0.2, mtr) * div
-      val expected = math.max(col(g, "ditax") + change / c.model.rebasedAverageIncome(g), 0)
+      val expected = math.max(col(g, "ditax") + change / c.mainModel.rebasedAverageIncome(g), 0)
       assertEqualsDouble(r(g).reformedTaxRate, expected, 1e-15, s"group ${label(g)}")
       assertEqualsDouble(r(g).reformedTaxRate, workbookIncomeTaxRate(p, doubleCount = false)(g), RateTolerance, s"group ${label(g)}")
 
@@ -612,7 +612,7 @@ class SaezZucman2019Test extends munit.FunSuite:
         c.IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate -> true, c.CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates -> true,
         c.CorporateTaxDeployStrongerEnforcement -> true),
       leversDouble   = Map(c.CorporateTaxProposedEffectiveRate -> p.corpRate, c.NationalIncomeTaxRate -> p.nit))
-    val without = c.model.run(cf)(c.IndividualIncomeTax)
+    val without = c.mainModel.run(cf)(c.IndividualIncomeTax)
     val withDc = reformed(incomeTaxCounterfactual(p), IndividualIncomeTax)
     for g <- groups do
       assertEqualsDouble(without(g).reformedTaxRate, workbookIncomeTaxRate(p, doubleCount = false)(g), RateTolerance, s"group ${label(g)}")
@@ -623,11 +623,11 @@ class SaezZucman2019Test extends munit.FunSuite:
     val p = IncomeTaxPreset("integration only", currentLawRates, false, false, true, 210.0 / 1308, false, 0.0)
     val d = delta(incomeTaxCounterfactual(p), IndividualIncomeTax)
     assert(d(groups.head) < 0, s"P0–1: ${d(groups.head)}")
-    assert(d(model.groups.topGroup) > 0, s"top 400: ${d(model.groups.topGroup)}")
+    assert(d(mainModel.groups.topGroup) > 0, s"top 400: ${d(mainModel.groups.topGroup)}")
 
   test("income tax: crowd-out uses the reformed NIT and VAT rates, (1 − R − S), for a 7% NIT and a 10% VAT"):
     val p = preset("Warren").copy(nit = 0.07)
-    val out = model.run(incomeTaxCounterfactual(p, vat = 0.10))
+    val out = mainModel.run(incomeTaxCounterfactual(p, vat = 0.10))
     val alone = reformed(incomeTaxCounterfactual(p.copy(nit = 0.0)), IndividualIncomeTax)
     for g <- groups do
       val expected = (1 - out(NationalIncomeTax)(g).reformedTaxRate - out(ValueAddedTax)(g).reformedTaxRate) * alone(g)
@@ -643,15 +643,15 @@ class SaezZucman2019Test extends munit.FunSuite:
       assertEqualsDouble(r(g), workbookIncomeTaxRate(p)(g), RateTolerance, s"group ${label(g)}")
 
   test("income tax: declares its inputs, so a model without the bracket schedule or the mtr data is rejected"):
-    intercept[IllegalArgumentException](model.copy(leversSchedule = model.leversSchedule - IndividualIncomeTaxSchedule))
-    intercept[IllegalArgumentException](model.copy(dataDouble = model.dataDouble - AvgOrdinaryMarginalTaxRate))
+    intercept[IllegalArgumentException](mainModel.copy(leversSchedule = mainModel.leversSchedule - IndividualIncomeTaxSchedule))
+    intercept[IllegalArgumentException](mainModel.copy(dataDouble = mainModel.dataDouble - AvgOrdinaryMarginalTaxRate))
 
   test("income tax: runs after the national income tax and VAT, and a model ordering it earlier is rejected"):
-    val order = model.instruments.map(_._1)
+    val order = mainModel.instruments.map(_._1)
     assert(order.indexOf(IndividualIncomeTax) > order.indexOf(NationalIncomeTax))
     assert(order.indexOf(IndividualIncomeTax) > order.indexOf(ValueAddedTax))
-    val iit = model.instruments.find(_._1 == IndividualIncomeTax).get
-    intercept[IllegalArgumentException](model.copy(instruments = iit :: model.instruments.filterNot(_ == iit)))
+    val iit = mainModel.instruments.find(_._1 == IndividualIncomeTax).get
+    intercept[IllegalArgumentException](mainModel.copy(instruments = iit :: mainModel.instruments.filterNot(_ == iit)))
 
   // ---- Property tax (column I) -------------------------------------------------------------------------------
 
@@ -663,12 +663,12 @@ class SaezZucman2019Test extends munit.FunSuite:
 
   test("property tax: no lever moves it, under any preset (the workbook never reforms it)"):
     val cfs = counterfactuals.Warren :: sanders :: nit7 :: vat10 :: salesReduction(0.5) :: incomeTaxPresets.map(incomeTaxCounterfactual(_))
-    for cf <- cfs; (g, r) <- model.run(cf)(PropertyTax) do
+    for cf <- cfs; (g, r) <- mainModel.run(cf)(PropertyTax) do
       assertEqualsDouble(r.reformedTaxRate, col(g, "proptax"), 0.0, s"group ${label(g)}")
       assertEqualsDouble(r.deltaTaxRate, 0.0, 0.0, s"group ${label(g)}")
 
   test("property tax: declares its input, so a model without the proptax data is rejected"):
-    intercept[IllegalArgumentException](model.copy(dataDouble = model.dataDouble - PropertyTaxShareOfIncome))
+    intercept[IllegalArgumentException](mainModel.copy(dataDouble = mainModel.dataDouble - PropertyTaxShareOfIncome))
 
   // ---- Totals (columns E and Z) ------------------------------------------------------------------------------
 
@@ -686,30 +686,30 @@ class SaezZucman2019Test extends munit.FunSuite:
       leversSchedule = iit.leversSchedule)
 
   test("totals: the model now covers every tax in the workbook; the current total is effrate, the sum of databig H–M"):
-    val t = total(model.run(Counterfactual()), _.baselineTaxRate)
+    val t = total(mainModel.run(Counterfactual()), _.baselineTaxRate)
     for g <- groups do
       assertEqualsDouble(t(g), col(g, "effrate"), 1e-7, s"group ${label(g)}")
 
   test("totals: the current total matches the cached calculatorbig!E8 (P0–1), E135 (top 400) and E137 (aggregate)"):
-    val t = total(model.run(Counterfactual()), _.baselineTaxRate)
+    val t = total(mainModel.run(Counterfactual()), _.baselineTaxRate)
     assertEqualsDouble(t(groups.head), 0.27588452569489164, 1e-7)
-    assertEqualsDouble(t(model.groups.topGroup), 0.23041529022157192, 1e-7)
+    assertEqualsDouble(t(mainModel.groups.topGroup), 0.23041529022157192, 1e-7)
     assertEqualsDouble(aggregate(t), 0.2771540411051811, 1e-7)
 
   test("totals: with private premiums shown as a tax, the current total is effrate + healthtax (E = G + L)"):
-    val t = healthShown.model.run(healthShown.Counterfactual()).values.map(_.map((g, r) => (g, r.baselineTaxRate)))
+    val t = healthShown.mainModel.run(healthShown.Counterfactual()).values.map(_.map((g, r) => (g, r.baselineTaxRate)))
     for g <- groups do
       val sum = t.map(byGroup => byGroup.collectFirst { case (h, v) if label(h) == label(g) => v }.get).sum
       assertEqualsDouble(sum, col(g, "effrate") + col(g, "healthtax"), 1e-7, s"group ${label(g)}")
 
   test("totals: the saved active plan (Obama) matches the cached total rate Z8 (P0–1), Z135 (top 400) and Z137 (aggregate)"):
-    val t = total(model.run(obamaAll), _.reformedTaxRate)
+    val t = total(mainModel.run(obamaAll), _.reformedTaxRate)
     assertEqualsDouble(t(groups.head), 0.27803246956704319, RateTolerance)
-    assertEqualsDouble(t(model.groups.topGroup), 0.26433688109052716, RateTolerance)
+    assertEqualsDouble(t(mainModel.groups.topGroup), 0.26433688109052716, RateTolerance)
     assertEqualsDouble(aggregate(t), 0.29276439871392085, 1e-6)
 
   test("totals: Warren's full plan (counterfactuals.Warren) matches Z = I + Y + Q…X in every group"):
-    val t = total(model.run(counterfactuals.Warren), _.reformedTaxRate)
+    val t = total(mainModel.run(counterfactuals.Warren), _.reformedTaxRate)
     val warrenWealth = counterfactuals.Warren.leversSchedule(WealthTaxSchedule)
     def workbookTotal(g: Group) =
       col(g, "proptax")                                  // I
@@ -723,7 +723,7 @@ class SaezZucman2019Test extends munit.FunSuite:
     assertEveryGroup(t, workbookTotal)
 
   test("totals: the deltas sum to the change in the total, and only the reformed taxes move under Warren"):
-    val out = model.run(counterfactuals.Warren)
+    val out = mainModel.run(counterfactuals.Warren)
     val d = total(out, _.deltaTaxRate)
     val (b, r) = (total(out, _.baselineTaxRate), total(out, _.reformedTaxRate))
     for g <- groups do assertEqualsDouble(d(g), r(g) - b(g), 1e-15, s"group ${label(g)}")

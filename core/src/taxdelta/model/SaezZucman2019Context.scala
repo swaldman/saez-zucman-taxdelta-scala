@@ -95,7 +95,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
       WealthTaxSchedule -> Schedule.empty
     )
 
-  val model = Model(
+  val mainModel = Model(
     groups            = SaezZucman2019DataBridge.groups,
     rebaser           = calculators.Rebaser,
     parametersBoolean = parametersBoolean,
