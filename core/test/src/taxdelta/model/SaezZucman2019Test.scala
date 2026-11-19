@@ -140,7 +140,7 @@ class SaezZucman2019Test extends munit.FunSuite:
   // ---- Baseline ----------------------------------------------------------------------------------------------
 
   test("instruments run in order and all report results"):
-    val all = List[LInstrument](EstateTax, HealthInsuranceTax, NationalIncomeTax, PayrollTax, ValueAddedTax, WealthTax, CorporateTax)
+    val all = List[LInstrument](EstateTax, HealthInsuranceTax, NationalIncomeTax, PayrollTax, ValueAddedTax, WealthTax, CorporateTax, IndividualIncomeTax)
     assertEquals(model.run(Counterfactual()).keySet, all.toSet)
     assertEquals(model.instruments.map(_._1), all)
 
@@ -407,3 +407,214 @@ class SaezZucman2019Test extends munit.FunSuite:
       val expected = (1 - out(NationalIncomeTax)(g).reformedTaxRate - out(ValueAddedTax)(g).reformedTaxRate) * col(g, "corptax")
       assertEqualsDouble(out(CorporateTax)(g).reformedTaxRate, expected, 1e-15, s"group ${label(g)}")
       assertEqualsDouble(out(CorporateTax)(g).reformedTaxRate, workbookCorporateRate(210.0 / 1308, false, 0.07, 0.10)(g), RateTolerance, s"group ${label(g)}")
+
+  // ---- Individual income tax (column W) ----------------------------------------------------------------------
+
+  private val incomeThresholds = IndexedSeq[Double](0, 77e3, 165e3, 315e3, 400e3, 600e3, 1e6, 2.5e6, 5e6, 10e6, 25e6, 50e6)
+  private val taxincCols = IndexedSeq("taxinc_0k", "taxinc_77k", "taxinc_165k", "taxinc_315k", "taxinc_400k", "taxinc_600k",
+    "taxinc_1000k", "taxinc_2500k", "taxinc_5000k", "taxinc_10000k", "taxinc_25000k", "taxinc_50000k")
+
+  /** Bracket rates, interface rows 51–62: current law (column C) and the presets (D, G, H, I, J, K). */
+  private val currentLawRates = IndexedSeq(0.12, 0.22, 0.24, 0.32, 0.35, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37)
+  private def incomeSchedule(rates: IndexedSeq[Double]) = Schedule(incomeThresholds, rates)
+
+  /** An income tax preset: brackets, interface rows 48 (gains fully taxed), 49 (dividends fully taxed) and
+   *  50 (integration), plus the corporate levers and national income tax that integration and crowd-out read. */
+  private case class IncomeTaxPreset(name: String, rates: IndexedSeq[Double], gains: Boolean, dividends: Boolean,
+                                     integration: Boolean, corpRate: Double, multinationals: Boolean, nit: Double)
+
+  private val incomeTaxPresets = List(
+    IncomeTaxPreset("Obama",     IndexedSeq(0.13, 0.25, 0.28, 0.33, 0.36, 0.40, 0.40, 0.40, 0.40, 0.40, 0.40, 0.40), false, false, false, 0.25, false, 0.00),
+    IncomeTaxPreset("book",      IndexedSeq(0.12, 0.22, 0.24, 0.32, 0.40, 0.55, 0.55, 0.55, 0.55, 0.60, 0.60, 0.60), true,  true,  true,  0.30, true,  0.07),
+    IncomeTaxPreset("Biden",     IndexedSeq(0.12, 0.22, 0.24, 0.33, 0.36, 0.40, 0.40, 0.40, 0.40, 0.40, 0.40, 0.40), true,  true,  false, 0.21, false, 0.00),
+    IncomeTaxPreset("Buttigieg", IndexedSeq(0.12, 0.22, 0.24, 0.36, 0.52, 0.52, 0.52, 0.52, 0.52, 0.52, 0.52, 0.52), true,  false, false, 0.25, true,  0.00),
+    IncomeTaxPreset("Sanders",   IndexedSeq(0.16, 0.26, 0.28, 0.36, 0.45, 0.56, 0.61, 0.61, 0.66, 0.68, 0.68, 0.68), true,  true,  false, 0.25, true,  0.02),
+    IncomeTaxPreset("Warren",    IndexedSeq(0.12, 0.22, 0.24, 0.37, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55), true,  true,  false, 0.30, true,  0.00),
+  )
+
+  /** The workbook couples retained-earnings attribution to integration (both live in BW and CA), so a preset's
+   *  integration switch sets both of the model's levers. */
+  private def incomeTaxCounterfactual(p: IncomeTaxPreset, vat: Double = 0.0) = Counterfactual(
+    leversSchedule = Map(IndividualIncomeTaxSchedule -> incomeSchedule(p.rates)),
+    leversBoolean  = Map(
+      IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate                -> p.gains,
+      IndividualIncomeTaxDividendsTaxedAtOrdinaryRate                   -> p.dividends,
+      IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate -> p.integration,
+      CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates                 -> p.integration,
+      CorporateTaxDeployStrongerEnforcement                             -> p.multinationals),
+    leversDouble   = Map(CorporateTaxProposedEffectiveRate -> p.corpRate, NationalIncomeTaxRate -> p.nit, ValueAddedTaxRate -> vat)
+  )
+  private def preset(name: String) = incomeTaxPresets.find(_.name == name).get
+
+  /** calculatorbig!BB137 · Σ adults: Σ_g nb · (fikgi + fidiv), the base over which BB allocates $166.6bn. */
+  private val workbookTotalGainsAndDividends = groups.map(g => adults(g) * (col(g, "fikgi") + col(g, "fidiv"))).sum
+
+  /** calculatorbig!CE8: Σ_k (Δp_k − Δc_k) · taxinc_k, with Δ the step in the marginal rate at threshold k. */
+  private def workbookBracketChange(rates: IndexedSeq[Double])(g: Group): Double =
+    def steps(r: IndexedSeq[Double]) = r.indices.map(k => r(k) - (if k == 0 then 0.0 else r(k - 1)))
+    val (dp, dc) = (steps(rates), steps(currentLawRates))
+    taxincCols.indices.map(k => (dp(k) - dc(k)) * col(g, taxincCols(k))).sum
+
+  /** calculatorbig!W8 = (1 − R8 − S8) · max(G8 + (CH8 + CI8)/C8, 0), recomputed from databig:
+   *   - CE: the bracket change; BX = fikgi/agi, BY = fidiv/agi;
+   *   - CI: CB = (1 − BX − BY)·CE, CC = (1 − BX)·CE, CD = (1 − BY)·CE or CE, by switches (d, k);
+   *         under integration CF = CE·(1 + CA/agi) or CG = CE·(1 + CA/agi − BX);
+   *   - CA = fidiv·Q142/(1 − Q142) + BB/(1 − Q142), BB = (fikgi + fidiv)·166.6e9 / Σ nb·(fikgi + fidiv);
+   *   - CH = [i]·BW + [d ∧ ¬i]·fidiv·mtrextra + [k]·fikgi·mtrextra,
+   *         BW = fidiv·((mtr − R142)/(1 − Q142) − min(0.2, mtr)) + BB·(mtr − R142)/(1 − Q142);
+   *   - Q142 = (150 + 8)/1308, R142 = R141 − (Q141 − Q142) + R143 (or, without the double count, R141 − 60/1308 + R143). */
+  private def workbookIncomeTaxRate(p: IncomeTaxPreset, vat: Double = 0.0, doubleCount: Boolean = true)(g: Group): Double =
+    val (kg, div, agi, mtr, mtrx) = (col(g, "fikgi"), col(g, "fidiv"), col(g, "agi"), col(g, "mtr"), col(g, "mtrextra"))
+    val ce = workbookBracketChange(p.rates)(g)
+    val (bx, by) = (kg / agi, div / agi)
+    val q142 = (150.0 + 8) / 1308
+    val r143 = (if p.multinationals then 96.0 else 8.0) / 1308
+    val r142 = if doubleCount then p.corpRate - (210.0 / 1308 - q142) + r143 else p.corpRate - 60.0 / 1308 + r143
+    val bb = (kg + div) * 166.6e9 / workbookTotalGainsAndDividends
+    val ca = div * q142 / (1 - q142) + bb / (1 - q142)
+    val ci =
+      if p.integration then (if p.gains then ce * (1 + ca / agi) else ce * (1 + ca / agi - bx))
+      else (p.dividends, p.gains) match
+        case (false, false) => (1 - bx - by) * ce
+        case (true,  false) => (1 - bx) * ce
+        case (false, true)  => (1 - by) * ce
+        case (true,  true)  => ce
+    val bw = div * ((mtr - r142) / (1 - q142) - math.min(0.2, mtr)) + bb * (mtr - r142) / (1 - q142)
+    val ch = (if p.integration then bw else 0.0) + (if p.dividends && !p.integration then div * mtrx else 0.0) + (if p.gains then kg * mtrx else 0.0)
+    val crowdOut = 1 - workbookNationalIncomeTaxRate(p.nit)(g) - (if vat == 0.0 then 0.0 else workbookVatRate(vat)(g))
+    crowdOut * math.max(col(g, "ditax") + (ch + ci) / denom(g), 0)
+
+  test("income tax: the baseline schedule is current law (interface C51:C62) and every treatment switch is off"):
+    assertEquals(model.leversSchedule(IndividualIncomeTaxSchedule), incomeSchedule(currentLawRates))
+    for l <- List(IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate, IndividualIncomeTaxDividendsTaxedAtOrdinaryRate,
+                  IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate, CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates) do
+      assertEquals(model.leversBoolean(l), false, l.toString)
+    assertEquals(model.parametersDouble(CorporateTaxCurrentStateReceipts), 60.0)
+    assertEquals(model.parametersDouble(CloselyHeldCorpTotalRetainedEarnings), 166.6)
+    assertEquals(model.parametersBoolean(ReplicateWorkbookForeignDoubleCount), true)
+
+  test("income tax: the taxable-income excess curves return the taxinc_ columns at their thresholds"):
+    for g <- groups; k <- incomeThresholds.indices do
+      assertEqualsDouble(model.dataExcessCurve(IncomeExcessCurve)(g).excessFromThreshold(incomeThresholds(k)), col(g, taxincCols(k)), 0.0,
+        s"group ${label(g)}, threshold ${incomeThresholds(k)}")
+
+  test("income tax: national gains plus dividends (Σ nb · (fikgi + fidiv)) are totalled without overflow, $1,145bn"):
+    assertEqualsDouble(SaezZucman2019DataBridge.totalGainsAndDividends.toDouble, workbookTotalGainsAndDividends, 0.0)
+    assertEqualsDouble(workbookTotalGainsAndDividends, 1.145140211439e12, 1.0)
+
+  test("income tax: the baseline is ditax (column G) in every group, exactly"):
+    for (g, b) <- baseline(IndividualIncomeTax) do assertEqualsDouble(b, col(g, "ditax"), 0.0, s"group ${label(g)}")
+
+  test("income tax: the Obama preset matches cached W8 (P0–1), W135 (top 400) and W137 (aggregate)"):
+    val r = reformed(incomeTaxCounterfactual(preset("Obama")), IndividualIncomeTax)
+    assertEqualsDouble(r(groups.head), 4.1187257339462043e-3, RateTolerance)
+    assertEqualsDouble(r(model.groups.topGroup), 9.4781867571797962e-2, RateTolerance)
+    assertEqualsDouble(aggregate(r), 0.12189620155133546, 1e-6)
+
+  test("income tax: the Obama preset's bracket change at P0–1 is CE8 = $12.90 and, with the preferences kept, CI8 = $12.79"):
+    val g = groups.head
+    assertEqualsDouble(workbookBracketChange(preset("Obama").rates)(g), 12.9, 1e-9)
+    val r = reformed(incomeTaxCounterfactual(preset("Obama")), IndividualIncomeTax)(g)
+    assertEqualsDouble((r - col(g, "ditax")) * model.rebasedAverageIncome(g), 12.790717375630869, 1e-6)
+
+  test("income tax: the Warren worked example (methodology §10.2), P99.997–99.998, W = 0.36360"):
+    assertEqualsDouble(reformed(counterfactuals.Warren, IndividualIncomeTax)(group("99.997")), 0.36360, RateTolerance)
+
+  test("income tax: the Warren preset (counterfactuals.Warren) carries her brackets and taxes gains and dividends as ordinary income"):
+    assertEquals(counterfactuals.Warren.leversSchedule(IndividualIncomeTaxSchedule), incomeSchedule(preset("Warren").rates))
+    assertEveryGroup(reformed(counterfactuals.Warren, IndividualIncomeTax), workbookIncomeTaxRate(preset("Warren")))
+
+  test("income tax: every preset matches column W in every group (with the book's integration and crowd-out)"):
+    for p <- incomeTaxPresets do
+      val r = reformed(incomeTaxCounterfactual(p), IndividualIncomeTax)
+      for g <- groups do
+        assertEqualsDouble(r(g), workbookIncomeTaxRate(p)(g), RateTolerance, s"${p.name}, group ${label(g)}")
+
+  test("income tax: every preset's aggregate matches the workbook's"):
+    for p <- incomeTaxPresets do
+      val r = reformed(incomeTaxCounterfactual(p), IndividualIncomeTax)
+      assertEqualsDouble(aggregate(r), aggregate(workbookIncomeTaxRate(p)), 1e-6, p.name)
+
+  test("income tax: every combination of the three switches, under the book's brackets, matches column W"):
+    for gains <- List(false, true); dividends <- List(false, true); integration <- List(false, true) do
+      val p = preset("book").copy(name = s"k=$gains d=$dividends i=$integration", gains = gains, dividends = dividends, integration = integration, nit = 0.0)
+      val r = reformed(incomeTaxCounterfactual(p), IndividualIncomeTax)
+      for g <- groups do
+        assertEqualsDouble(r(g), workbookIncomeTaxRate(p)(g), RateTolerance, s"${p.name}, group ${label(g)}")
+
+  test("income tax: with current brackets, taxing gains as ordinary income adds mtrextra · fikgi and nothing else"):
+    val p = IncomeTaxPreset("gains only", currentLawRates, true, false, false, 210.0 / 1308, false, 0.0)
+    val r = reformed(incomeTaxCounterfactual(p), IndividualIncomeTax)
+    for g <- groups do
+      val expected = math.max(col(g, "ditax") + col(g, "mtrextra") * col(g, "fikgi") / model.rebasedAverageIncome(g), 0)
+      assertEqualsDouble(r(g), expected, 1e-15, s"group ${label(g)}")
+
+  test("income tax: with current brackets, kept preferences leave every group's rate unchanged, whatever the corporate levers"):
+    val p = IncomeTaxPreset("nothing", currentLawRates, false, false, false, 0.30, true, 0.0)
+    for (g, r) <- model.run(incomeTaxCounterfactual(p))(IndividualIncomeTax) do
+      assertEqualsDouble(r.deltaTaxRate, 0.0, 0.0, s"group ${label(g)}")
+
+  test("income tax: without the double count and with no corporate reform, the credit rate equals the gross-up rate (τ_p = τ_c)"):
+    val c = SaezZucman2019Context(Map("ReplicateWorkbookForeignDoubleCount" -> false))
+    val p = IncomeTaxPreset("integration only", currentLawRates, false, false, true, 210.0 / 1308, false, 0.0)
+    val cf = c.Counterfactual(
+      leversBoolean = Map(c.IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate -> true, c.CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates -> true))
+    val r = c.model.run(cf)(c.IndividualIncomeTax)
+    val tau = 158.0 / 1308
+    for g <- groups do
+      val (div, mtr) = (col(g, "fidiv"), col(g, "mtr"))
+      val re = (col(g, "fikgi") + div) * 166.6e9 / workbookTotalGainsAndDividends
+      val change = (mtr - tau) * (div + re) / (1 - tau) - math.min(0.2, mtr) * div
+      val expected = math.max(col(g, "ditax") + change / c.model.rebasedAverageIncome(g), 0)
+      assertEqualsDouble(r(g).reformedTaxRate, expected, 1e-15, s"group ${label(g)}")
+      assertEqualsDouble(r(g).reformedTaxRate, workbookIncomeTaxRate(p, doubleCount = false)(g), RateTolerance, s"group ${label(g)}")
+
+  test("income tax: the workbook's double count lowers the book plan's rate wherever there are dividends or retained earnings"):
+    val c = SaezZucman2019Context(Map("ReplicateWorkbookForeignDoubleCount" -> false))
+    val p = preset("book")
+    val cf = c.Counterfactual(
+      leversSchedule = Map(c.IndividualIncomeTaxSchedule -> incomeSchedule(p.rates)),
+      leversBoolean  = Map(c.IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate -> true, c.IndividualIncomeTaxDividendsTaxedAtOrdinaryRate -> true,
+        c.IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate -> true, c.CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates -> true,
+        c.CorporateTaxDeployStrongerEnforcement -> true),
+      leversDouble   = Map(c.CorporateTaxProposedEffectiveRate -> p.corpRate, c.NationalIncomeTaxRate -> p.nit))
+    val without = c.model.run(cf)(c.IndividualIncomeTax)
+    val withDc = reformed(incomeTaxCounterfactual(p), IndividualIncomeTax)
+    for g <- groups do
+      assertEqualsDouble(without(g).reformedTaxRate, workbookIncomeTaxRate(p, doubleCount = false)(g), RateTolerance, s"group ${label(g)}")
+      if col(g, "fidiv") + col(g, "fikgi") > 0 && withDc(g) > 0 then
+        assert(withDc(g) < without(g).reformedTaxRate, s"group ${label(g)}")
+
+  test("income tax: integration refunds overpaid corporate tax at the bottom, and pays more at the top"):
+    val p = IncomeTaxPreset("integration only", currentLawRates, false, false, true, 210.0 / 1308, false, 0.0)
+    val d = delta(incomeTaxCounterfactual(p), IndividualIncomeTax)
+    assert(d(groups.head) < 0, s"P0–1: ${d(groups.head)}")
+    assert(d(model.groups.topGroup) > 0, s"top 400: ${d(model.groups.topGroup)}")
+
+  test("income tax: crowd-out uses the reformed NIT and VAT rates, (1 − R − S), for a 7% NIT and a 10% VAT"):
+    val p = preset("Warren").copy(nit = 0.07)
+    val out = model.run(incomeTaxCounterfactual(p, vat = 0.10))
+    val alone = reformed(incomeTaxCounterfactual(p.copy(nit = 0.0)), IndividualIncomeTax)
+    for g <- groups do
+      val expected = (1 - out(NationalIncomeTax)(g).reformedTaxRate - out(ValueAddedTax)(g).reformedTaxRate) * alone(g)
+      assertEqualsDouble(out(IndividualIncomeTax)(g).reformedTaxRate, expected, 1e-15, s"group ${label(g)}")
+      assertEqualsDouble(out(IndividualIncomeTax)(g).reformedTaxRate, workbookIncomeTaxRate(p, vat = 0.10)(g), RateTolerance, s"group ${label(g)}")
+
+  test("income tax: the floor keeps rates at zero, not negative, when brackets are abolished"):
+    val p = IncomeTaxPreset("no brackets", IndexedSeq.fill(12)(0.0), false, false, false, 210.0 / 1308, false, 0.0)
+    val r = reformed(incomeTaxCounterfactual(p), IndividualIncomeTax)
+    assert(groups.exists(r(_) == 0.0), "some group is floored")
+    for g <- groups do
+      assert(r(g) >= 0.0, s"group ${label(g)}: ${r(g)}")
+      assertEqualsDouble(r(g), workbookIncomeTaxRate(p)(g), RateTolerance, s"group ${label(g)}")
+
+  test("income tax: declares its inputs, so a model without the bracket schedule or the mtr data is rejected"):
+    intercept[IllegalArgumentException](model.copy(leversSchedule = model.leversSchedule - IndividualIncomeTaxSchedule))
+    intercept[IllegalArgumentException](model.copy(dataDouble = model.dataDouble - AvgOrdinaryMarginalTaxRate))
+
+  test("income tax: runs after the national income tax and VAT, and a model ordering it earlier is rejected"):
+    val order = model.instruments.map(_._1)
+    assert(order.indexOf(IndividualIncomeTax) > order.indexOf(NationalIncomeTax))
+    assert(order.indexOf(IndividualIncomeTax) > order.indexOf(ValueAddedTax))
+    val iit = model.instruments.find(_._1 == IndividualIncomeTax).get
+    intercept[IllegalArgumentException](model.copy(instruments = iit :: model.instruments.filterNot(_ == iit)))

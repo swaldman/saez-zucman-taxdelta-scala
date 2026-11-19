@@ -5,6 +5,11 @@ class SaezZucman2019Counterfactuals[C <: SaezZucman2019Context & Singleton](val 
   import context.*
 
   val Warren =
+    val warrenIncomeTaxSchedule = Schedule(
+      IndexedSeq(0d, 77_000, 165_000, 315_000, 400_000, 600_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000, 25_000_000, 50_000_000),
+      IndexedSeq(0.12, 0.22, 0.24, 0.37, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55)
+    )      
+
     // the 0.0005 & 0.0010 terms are a financial transactions tax awkwardly
     // modeled as part of the wealth tax.
     val warrenWealthTaxSchedule = Schedule(
@@ -14,6 +19,8 @@ class SaezZucman2019Counterfactuals[C <: SaezZucman2019Context & Singleton](val 
     val leversBoolean =  Map(
       CorporateTaxDeployStrongerEnforcement                    -> true,
       EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax -> true,
+      IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate       -> true,
+      IndividualIncomeTaxDividendsTaxedAtOrdinaryRate          -> true,
     )
     val leversDouble = Map(
       CorporateTaxProposedEffectiveRate                 -> 0.30d,
@@ -23,7 +30,8 @@ class SaezZucman2019Counterfactuals[C <: SaezZucman2019Context & Singleton](val 
       WealthTaxEvasionRate                              -> 0.15d,
     )
     val leversSchedule = Map(
-      WealthTaxSchedule -> warrenWealthTaxSchedule,
+      IndividualIncomeTaxSchedule -> warrenIncomeTaxSchedule,
+      WealthTaxSchedule           -> warrenWealthTaxSchedule,
     )
     Counterfactual(
       leversBoolean = leversBoolean,

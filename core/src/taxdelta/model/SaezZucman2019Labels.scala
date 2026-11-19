@@ -3,26 +3,32 @@ package taxdelta.model
 import scala.util.control.NonFatal
 
 abstract class SaezZucman2019Labels extends ModelContext:
+  // LP means "label of parameter"
   enum LPBoolean extends InputLabel:
     case CountPrivateHealthPremiumsAsTax
+    case ReplicateWorkbookForeignDoubleCount
 
   enum LPDouble extends InputLabel:
     case AverageSalesTaxShareOfIncome
     case AverageValueAddedTaxableConsumptionShareOfIncome
+    case CloselyHeldCorpTotalRetainedEarnings
     case ConsumerIncidenceShare
     case CorporateTaxCurrentDomesticProfits
     case CorporateTaxCurrentDomesticReceipts
     case CorporateTaxCurrentForeignReceipts
+    case CorporateTaxCurrentStateReceipts
     case CorporateTaxForeignReceiptsUnderStrongerEnforcement
     case EmployerShareOfPrivateHealthPremiums
     case EstateTaxCurrentAvoidanceRate
     case EstateTaxCurrentStatutoryTopRate
     case FiscalCapitalGainsTaxableShare // income stats exclude realized gains, but the tax base does in part include them
 
+  // LD means "label of a (per-group) data item"
   enum LDDouble extends InputLabel:
     case AvgOrdinaryMarginalTaxRate
     case AvgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent
     case CorporateTaxShareOfIncome
+    case EffectiveIncomeTaxShareOfIncome
     case EmployersHealthInsuranceContributionShareOfIncome
     case EstateTaxShareOfIncome
     case PayrollTaxShareOfIncome
@@ -30,6 +36,7 @@ abstract class SaezZucman2019Labels extends ModelContext:
 
   enum LDInt extends InputLabel:
     case NationalIncomeTaxBase
+    case NumberOfAdults
     case FiscalCapitalGains
     case FiscalDividends
     case FiscalIncomeIncludingCapitalGains
@@ -38,9 +45,14 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case IncomeExcessCurve
     case WealthExcessCurve
 
+  // LL means "label of a potential policy lever"
   enum LLBoolean extends InputLabel:
+    case CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates
     case CorporateTaxDeployStrongerEnforcement
     case EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax
+    case IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate
+    case IndividualIncomeTaxDividendsTaxedAtOrdinaryRate
+    case IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate
 
   enum LLDouble extends InputLabel:
     case CorporateTaxProposedEffectiveRate
@@ -52,12 +64,14 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case WealthTaxEvasionRate
 
   enum LLSchedule extends InputLabel:
+    case IndividualIncomeTaxSchedule
     case WealthTaxSchedule
 
   enum LInstrument:
     case CorporateTax
     case EstateTax
     case HealthInsuranceTax
+    case IndividualIncomeTax
     case NationalIncomeTax
     case PayrollTax
     case ValueAddedTax

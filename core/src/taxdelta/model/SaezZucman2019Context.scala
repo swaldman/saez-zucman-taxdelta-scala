@@ -3,16 +3,24 @@ package taxdelta.model
 class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) extends SaezZucman2019Labels:
 
   val defaultParametersBoolean = Map(
-    CountPrivateHealthPremiumsAsTax -> false
-  )
+    CountPrivateHealthPremiumsAsTax     -> false,
 
+    // for computing "integrated" dividends and retained-earnings,
+    // the individual income tax instrument uses a proposedFederalCorporateTaxRate
+    // that seems to double-count CorporateTaxCurrentForeignReceipts.
+    // probably this is a (very small) mistake, but by default we keep it to match
+    // values from the Saez-Zucman values
+    ReplicateWorkbookForeignDoubleCount -> true,
+  )
   val defaultParametersDouble = Map(
     AverageSalesTaxShareOfIncome                        -> 0.04675733843078d, // from calculatorbig, F137: calculated as the denom-weighted avg of per-group sales-tax-share-of-income
     AverageValueAddedTaxableConsumptionShareOfIncome    ->   0.4d,
+    CloselyHeldCorpTotalRetainedEarnings                -> 166.6d, // billions
     ConsumerIncidenceShare                              ->  0.75d,
     CorporateTaxCurrentDomesticProfits                  ->  1308d, // billions
-    CorporateTaxCurrentDomesticReceipts                 ->   210d, // billions
+    CorporateTaxCurrentDomesticReceipts                 ->   210d, // billions, Federal + State
     CorporateTaxCurrentForeignReceipts                  ->     8d,
+    CorporateTaxCurrentStateReceipts                    ->    60d, // billions
     CorporateTaxForeignReceiptsUnderStrongerEnforcement ->    96d,
     EmployerShareOfPrivateHealthPremiums                ->  0.55d,
     EstateTaxCurrentAvoidanceRate                       ->   0.6d,
@@ -21,15 +29,21 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
   )
 
   val dataDouble = Map(
-    CorporateTaxShareOfIncome                         -> SaezZucman2019DataBridge.corporateTaxShareOfIncome,
-    EmployersHealthInsuranceContributionShareOfIncome -> SaezZucman2019DataBridge.healthTaxShareOfIncome,
-    EstateTaxShareOfIncome                            -> SaezZucman2019DataBridge.estateTaxShareOfIncome,
-    PayrollTaxShareOfIncome                           -> SaezZucman2019DataBridge.payrollTaxShareOfIncome,
-    SalesTaxShareOfIncome                             -> SaezZucman2019DataBridge.salesTaxShareOfIncome,
+    AvgOrdinaryMarginalTaxRate                            -> SaezZucman2019DataBridge.avgOrdinaryMarginalTaxRate,
+    AvgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent -> SaezZucman2019DataBridge.avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent,
+    CorporateTaxShareOfIncome                             -> SaezZucman2019DataBridge.corporateTaxShareOfIncome,
+    EffectiveIncomeTaxShareOfIncome                       -> SaezZucman2019DataBridge.effectiveIncomeTaxShareOfIncome,
+    EmployersHealthInsuranceContributionShareOfIncome     -> SaezZucman2019DataBridge.healthTaxShareOfIncome,
+    EstateTaxShareOfIncome                                -> SaezZucman2019DataBridge.estateTaxShareOfIncome,
+    PayrollTaxShareOfIncome                               -> SaezZucman2019DataBridge.payrollTaxShareOfIncome,
+    SalesTaxShareOfIncome                                 -> SaezZucman2019DataBridge.salesTaxShareOfIncome,
   )
   val dataInt = Map(
-    NationalIncomeTaxBase -> SaezZucman2019DataBridge.nationalIncomeTaxBase,
-    FiscalCapitalGains    -> SaezZucman2019DataBridge.fiscalCapitalGains,
+    NationalIncomeTaxBase             -> SaezZucman2019DataBridge.nationalIncomeTaxBase,
+    NumberOfAdults                    -> SaezZucman2019DataBridge.numberOfAdults,
+    FiscalCapitalGains                -> SaezZucman2019DataBridge.fiscalCapitalGains,
+    FiscalDividends                   -> SaezZucman2019DataBridge.fiscalDividends,
+    FiscalIncomeIncludingCapitalGains -> SaezZucman2019DataBridge.fiscalIncomeIncludingCapGains,
   )
   val dataExcessCurve = Map(
     IncomeExcessCurve -> SaezZucman2019DataBridge.incomeExcessCurves,
@@ -55,8 +69,12 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
   // the final parameterization of the model
   object Baseline:
     val leversBoolean =  Map(
-      CorporateTaxDeployStrongerEnforcement                    -> false,
-      EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax -> false
+      CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates                 -> false,
+      CorporateTaxDeployStrongerEnforcement                             -> false,
+      EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax          -> false,
+      IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate                -> false,
+      IndividualIncomeTaxDividendsTaxedAtOrdinaryRate                   -> false,
+      IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate -> false,
     )
     val leversDouble = Map(
       CorporateTaxProposedEffectiveRate                 -> parametersDouble(CorporateTaxCurrentDomesticReceipts) / parametersDouble(CorporateTaxCurrentDomesticProfits), // baseline rate, by definition
@@ -68,6 +86,10 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
       WealthTaxEvasionRate                              -> 0.15d,
     )
     val leversSchedule = Map(
+      IndividualIncomeTaxSchedule -> Schedule( // current law schedule
+        IndexedSeq(0d, 77_000, 165_000, 315_000, 400_000, 600_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000, 25_000_000, 50_000_000),
+        IndexedSeq(0.12, 0.22, 0.24, 0.32, 0.35, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37, 0.37)
+      ),
       WealthTaxSchedule -> Schedule.empty
     )
 
@@ -83,12 +105,14 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     leversDouble      = Baseline.leversDouble,
     leversSchedule    = Baseline.leversSchedule,
     instruments       = List(
-                          EstateTax          -> calculators.EstateTaxInstrument,
-                          HealthInsuranceTax -> calculators.HealthInsuranceTaxInstrument,
-                          NationalIncomeTax  -> calculators.NationalIncomeTaxInstrument,
-                          PayrollTax         -> calculators.PayrollTaxInstrument,
-                          ValueAddedTax      -> calculators.ValueAddedTaxInstrument,
-                          WealthTax          -> calculators.WealthTaxInstrument,
-                          CorporateTax       -> calculators.CorporateTaxInstrument, // depends upon NationalIncomeTax and ValueAddedTax having been executed previously
+                          EstateTax           -> calculators.EstateTaxInstrument,
+                          HealthInsuranceTax  -> calculators.HealthInsuranceTaxInstrument,
+                          NationalIncomeTax   -> calculators.NationalIncomeTaxInstrument,
+                          PayrollTax          -> calculators.PayrollTaxInstrument,
+                          ValueAddedTax       -> calculators.ValueAddedTaxInstrument,
+                          WealthTax           -> calculators.WealthTaxInstrument,
+                          CorporateTax        -> calculators.CorporateTaxInstrument, // depends upon NationalIncomeTax and ValueAddedTax having been executed previously
+                          IndividualIncomeTax -> calculators.IndividualIncomeTaxInstrument, // depends upon NationalIncomeTax and ValueAddedTax having been executed previously
                         )
   )
+

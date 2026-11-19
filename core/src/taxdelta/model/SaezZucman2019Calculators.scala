@@ -86,17 +86,6 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       computeTaxRate( countPrivateHealthPremiumsAsTax, employerSponsoredPrivateHealthPremiumsAsTaxRate, reductionOfEmployerSponsoredPrivateHealthPremiums )
     override val requires = Set(CountPrivateHealthPremiumsAsTax,EmployersHealthInsuranceContributionShareOfIncome,ReductionOfEmployerSponsoredPrivateHealthPremiums)
 
-  object WealthTaxInstrument extends Instrument.Unified:
-    private def computeTaxRate( schedule : Schedule, excessCurve : ExcessCurve, evasionRate : Double, rebasedAverageIncome : Double ) : Double =
-      val taxesDue = schedule.averageTax( excessCurve );
-      val afterEvasion = (1 - evasionRate) * taxesDue;
-      afterEvasion / rebasedAverageIncome
-    protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
-      val schedule = model.orPrefer(counterfactual)(WealthTaxSchedule)
-      val evasionRate = model.orPrefer(counterfactual)(WealthTaxEvasionRate)
-      computeTaxRate( schedule, model.dataExcessCurve(WealthExcessCurve)(g), evasionRate, model.rebasedAverageIncome(g) )
-    override val requires = Set(WealthTaxSchedule,WealthExcessCurve,WealthTaxEvasionRate)
-
   object NationalIncomeTaxInstrument extends Instrument.Unified:
     private def computeTaxRate( proposedNationalIncomeTaxRate : Double, nationalIncomeTaxBase : Double, rebasedAverageIncome : Double ) : Double =
       (proposedNationalIncomeTaxRate * nationalIncomeTaxBase) / rebasedAverageIncome
@@ -146,3 +135,282 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       val consumerIncidenceShare = model.parametersDouble(ConsumerIncidenceShare)
       computeTaxRate( valueAddedTaxRate, averageValueAddedTaxableConsumptionShareOfIncome, groupSpecificSalesTaxShareOfIncome, averageSalesTaxShareOfIncome, consumerIncidenceShare )
     override val requires = Set(ValueAddedTaxRate,AverageValueAddedTaxableConsumptionShareOfIncome,SalesTaxShareOfIncome,AverageSalesTaxShareOfIncome,ConsumerIncidenceShare)
+
+  object WealthTaxInstrument extends Instrument.Unified:
+    private def computeTaxRate( schedule : Schedule, excessCurve : ExcessCurve, evasionRate : Double, rebasedAverageIncome : Double ) : Double =
+      val taxesDue = schedule.averageTax( excessCurve );
+      val afterEvasion = (1 - evasionRate) * taxesDue;
+      afterEvasion / rebasedAverageIncome
+    protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
+      val schedule = model.orPrefer(counterfactual)(WealthTaxSchedule)
+      val evasionRate = model.orPrefer(counterfactual)(WealthTaxEvasionRate)
+      computeTaxRate( schedule, model.dataExcessCurve(WealthExcessCurve)(g), evasionRate, model.rebasedAverageIncome(g) )
+    override val requires = Set(WealthTaxSchedule,WealthExcessCurve,WealthTaxEvasionRate)
+
+  object IndividualIncomeTaxInstrument extends Instrument.Unified:
+    private def computeTaxRate(
+      baselineTaxSchedule                                               : Schedule,
+      avgOrdinaryMarginalTaxRate                                        : Double,
+      avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent             : Double,
+      closelyHeldCorpTaxRetainedEarningsAtOrdinaryRates                 : Boolean,
+      closelyHeldCorpTotalRetainedEarningsInDollars                     : Double,
+      computedNationalIncomeTaxRateForGroup                             : Double,
+      computedValueAddedTaxRateForGroup                                 : Double,
+      corporateTaxProposedEffectiveRate                                 : Double,
+      corporateTaxCurrentDomesticProfits                                : Double,
+      corporateTaxCurrentDomesticReceipts                               : Double,
+      corporateTaxCurrentForeignReceipts                                : Double,
+      corporateTaxCurrentStateReceipts                                  : Double,
+      corporateTaxForeignReceiptsUnderStrongerEnforcement               : Double,
+      corporateTaxDeployStrongerEnforcement                             : Boolean,
+      effectiveIncomeTaxShareOfIncome                                   : Double,
+      fiscalCapitalGains                                                : Double,
+      fiscalDividends                                                   : Double,
+      fiscalIncomeIncludingCapitalGains                                 : Double,
+      fiscalCapGainsAndDividendsTotal                                   : Double,
+      incomeExcessCurve                                                 : ExcessCurve,
+      individualIncomeTaxCapitalGainsTaxedAtOrdinaryRate                : Boolean,
+      individualIncomeTaxDividendsTaxedAtOrdinaryRate                   : Boolean,
+      individualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate : Boolean, // if true, obviates individualIncomeTaxDividendsTaxedAtOrdinaryRate, it'd be better to use a three-value enum for this
+      replicateWorkbookForeignDoubleCount                               : Boolean,
+      individualIncomeTaxSchedule                                       : Schedule,
+      rebasedAverageIncomeForGroup                                      : Double
+    ) : Double =
+      val proposedFederalCorporateTaxRate =
+        val foreignReceipts = if corporateTaxDeployStrongerEnforcement then corporateTaxForeignReceiptsUnderStrongerEnforcement else corporateTaxCurrentForeignReceipts
+
+        // XXX: To reproduce the Saez-Zucman workbook. But this is probably a mistake we will want to eliminate later
+        val probablyErroneousExtraCurrentForeignReceiptsTerm =
+          if replicateWorkbookForeignDoubleCount then corporateTaxCurrentForeignReceipts else 0d
+
+        val proposedTotalReceipts   = (corporateTaxCurrentDomesticProfits * corporateTaxProposedEffectiveRate) + foreignReceipts + probablyErroneousExtraCurrentForeignReceiptsTerm
+        val proposedFederalReceipts = proposedTotalReceipts - corporateTaxCurrentStateReceipts   // state tax is held fixed and isn't creditable
+        proposedFederalReceipts / corporateTaxCurrentDomesticProfits
+
+      val currentFederalCorporateTaxRate =
+        (corporateTaxCurrentDomesticReceipts + corporateTaxCurrentForeignReceipts - corporateTaxCurrentStateReceipts) / corporateTaxCurrentDomesticProfits
+
+      val naiveChangeAtOrdinaryRates = individualIncomeTaxSchedule.averageTax(incomeExcessCurve) - baselineTaxSchedule.averageTax(incomeExcessCurve)
+      val naiveChangeAtOrdinaryRatesPerDollarOfFiscalIncome = naiveChangeAtOrdinaryRates / fiscalIncomeIncludingCapitalGains
+
+      // notation: xTaxSchedule(dollars) means the tax those dollars pay, sitting on top of the
+      // person's other income, under schedule x. we approximate, with our data,
+      //     oldTaxSchedule(dollars) ≈ mtr * dollars
+      //     newTaxSchedule(dollars) ≈ (mtr + naiveChangeAtOrdinaryRatesPerDollarOfFiscalIncome) * dollars
+
+      val additionDueToCapGainsPreference = // use a negative value for if exclusion
+        if individualIncomeTaxCapitalGainsTaxedAtOrdinaryRate then
+          // we have
+          //
+          //    newTaxSchedule(fiscalCapGains) - oldTaxSchedule(fiscalCapGains) // treating fiscalCapGains as marginal income
+          //
+          // we want
+          //
+          //    newTaxSchedule(fiscalCapGains) - min(0.20,mtr) * fiscalCapGains          // 0.20 is the hardcoded current-law preference rate, but not more than mtr
+          //
+          // want - have = newTaxSchedule(fiscalCapGains) - min(0.20,mtr) * fiscalCapGains - (newTaxSchedule(fiscalCapGains) - oldTaxSchedule(fiscalCapGains))
+          //             = newTaxSchedule(fiscalCapGains) - min(0.20,mtr) * fiscalCapGains - newTaxSchedule(fiscalCapGains) + oldTaxSchedule(fiscalCapGains)
+          //             = - min(0.20,mtr) * fiscalCapGains + oldTaxSchedule(fiscalCapGains)
+          //             ≈ - min(0.20,mtr) * fiscalCapGains + (mtr * fiscalCapGains)
+          //             ≈ (mtr - min(0.20,mtr)) * fiscalCapGains
+          //             ≈ avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent * fiscalCapGains
+          //
+          avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent * fiscalCapitalGains
+        else
+          // we have
+          //
+          //    newTaxSchedule(fiscalCapGains) - oldTaxSchedule(fiscalCapGains) // treating fiscalCapGains as marginal income
+          //
+          // we want
+          //
+          //    0                                                               // should contribute nothing to the delta, 
+          //                                                                    // because we're leaving its treatment alone,
+          //                                                                    // and ay its preference rate, unaffected by
+          //                                                                    // any change in brackets
+          //                                                                    //
+          //                                                                    // but newTaxSchedule(fiscalCapGains) - oldTaxSchedule(fiscalCapGains)
+          // So...                                                              // would have mechanically applied effects of bracket changes!
+          //
+          // want - have = 0 - (newTaxSchedule(fiscalCapGains) - oldTaxSchedule(fiscalCapGains))
+          //             = oldTaxSchedule(fiscalCapGains) - newTaxSchedule(fiscalCapGains)
+          //             ≈ mtr * fiscalCapGains - (mtr + naiveChangeAtOrdinaryRatesPerDollarOfFiscalIncome) * fiscalCapGains
+          //             = - naiveChangeAtOrdinaryRatesPerDollarOfFiscalIncome * fiscalCapGains
+          //
+          -naiveChangeAtOrdinaryRatesPerDollarOfFiscalIncome * fiscalCapitalGains
+      val additionDueToDividendTreatment = // use a negative value for if exclusion
+        if individualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate then
+          //
+          // we have fiscalDividends
+          //
+          // grossedUpDividends = fiscalDividends / (1 - currentFederalCorporateTaxRate)
+          //
+          // our tax brackets have computed, for the dividend dollars,
+          //     newTaxSchedule(fiscalDividends) - oldTaxSchedule(fiscalDividends)
+          //
+          // but what we really want is
+          //    the new personal tax on the grossed-up dividend,
+          //      less the credit for corporate tax already paid, 
+          //      less what the dividends actually pay today (min(0.20,mtr) * fiscalDividends) 
+          //        (the preference rate, or less if the person's ordinary rate is below it)
+          //     newTaxSchedule(grossedUpDividends) - proposedFederalCorporateTaxRate * grossedUpDividends - (min(0.20,mtr) * fiscalDividends)
+          //
+          // so we add want - have:
+          //
+          //   want = newTaxSchedule(grossedUpDividends) - (proposedFederalCorporateTaxRate * grossedUpDividends) - (min(0.20,mtr) * fiscalDividends)
+          //   have = newTaxSchedule(fiscalDividends) - oldTaxSchedule(fiscalDividends)
+          //
+          //   want - have = newTaxSchedule(grossedUpDividends) - (proposedFederalCorporateTaxRate * grossedUpDividends) - (min(0.20,mtr) * fiscalDividends) - (newTaxSchedule(fiscalDividends) - oldTaxSchedule(fiscalDividends))
+          //   want - have = newTaxSchedule(grossedUpDividends) - (proposedFederalCorporateTaxRate * grossedUpDividends) - (min(0.20,mtr) * fiscalDividends) - newTaxSchedule(fiscalDividends) + oldTaxSchedule(fiscalDividends)
+          //
+          //   rearrange:
+          //     want - have = newTaxSchedule(grossedUpDividends) - newTaxSchedule(fiscalDividends) - (proposedFederalCorporateTaxRate * grossedUpDividends) - (min(0.20,mtr) * fiscalDividends) + oldTaxSchedule(fiscalDividends)
+          //
+          //   since we consider applying a tax schedule to an increment of dollars applying "at the top", at the margina rate, we simplify:
+          //     want - have = newTaxSchedule(grossedUpDividends-fiscalDividends) - (proposedFederalCorporateTaxRate * grossedUpDividends) - (min(0.20,mtr) * fiscalDividends) + oldTaxSchedule(fiscalDividends)
+          //
+          //   and then replace with their approximate definitions (see above)
+          //     want - have = (mtr + naiveChangeAtOrdinaryRatesPerDollarOfFiscalIncome) * (grossedUpDividends-fiscalDividends) - (proposedFederalCorporateTaxRate * grossedUpDividends) - (min(0.20,mtr) * fiscalDividends) + (mtr * fiscalDividends)
+          //     want - have = (mtr + naiveChangeAtOrdinaryRatesPerDollarOfFiscalIncome) * (grossedUpDividends-fiscalDividends) - (proposedFederalCorporateTaxRate * grossedUpDividends) + ((mtr - min(0.20,mtr)) * fiscalDividends)
+          //
+          val grossedUpDividends          = fiscalDividends / (1 - currentFederalCorporateTaxRate)
+          val grossUpIncrement            = grossedUpDividends - fiscalDividends
+          (avgOrdinaryMarginalTaxRate + naiveChangeAtOrdinaryRatesPerDollarOfFiscalIncome) * grossUpIncrement - (proposedFederalCorporateTaxRate * grossedUpDividends) + ((avgOrdinaryMarginalTaxRate - math.min(0.20,avgOrdinaryMarginalTaxRate)) * fiscalDividends)
+        else if individualIncomeTaxDividendsTaxedAtOrdinaryRate then
+          // we have
+          //
+          //    newTaxSchedule(fiscalDividends) - oldTaxSchedule(fiscalDividends) // treating fiscalDividends as marginal income
+          //
+          // we want
+          //
+          //    newTaxSchedule(fiscalDividends) - min(0.20,mtr) * fiscalDividends          // 0.20 is the hardcoded current-law preference rate, but not more than mtr
+          //
+          // want - have = newTaxSchedule(fiscalDividends) - min(0.20,mtr) * fiscalDividends - (newTaxSchedule(fiscalDividends) - oldTaxSchedule(fiscalDividends))
+          //             = newTaxSchedule(fiscalDividends) - min(0.20,mtr) * fiscalDividends - newTaxSchedule(fiscalDividends) + oldTaxSchedule(fiscalDividends)
+          //             = - min(0.20,mtr) * fiscalDividends + oldTaxSchedule(fiscalDividends)
+          //             ≈ - min(0.20,mtr) * fiscalDividends + (mtr * fiscalDividends)
+          //             ≈ (mtr - min(0.20,mtr)) * fiscalDividends
+          //             ≈ avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent * fiscalDividends
+          //
+          avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent * fiscalDividends
+        else
+          // we have
+          //
+          //    newTaxSchedule(fiscalDividends) - oldTaxSchedule(fiscalDividends) // treating fiscalDividends as marginal income
+          //
+          // we want
+          //
+          //    0                                                               // should contribute nothing to the delta, 
+          //                                                                    // because we're leaving its treatment alone,
+          //                                                                    // and ay its preference rate, unaffected by
+          //                                                                    // any change in brackets
+          //                                                                    //
+          //                                                                    // but newTaxSchedule(fiscalDividends) - oldTaxSchedule(fiscalDividends)
+          // So...                                                              // would have mechanically applied effects of bracket changes!
+          //
+          // want - have = 0 - (newTaxSchedule(fiscalDividends) - oldTaxSchedule(fiscalDividends))
+          //             = oldTaxSchedule(fiscalDividends) - newTaxSchedule(fiscalDividends)
+          //             ≈ mtr * fiscalDividends - (mtr + naiveChangeAtOrdinaryRatesPerDollarOfFiscalIncome) * fiscalDividends
+          //             = - naiveChangeAtOrdinaryRatesPerDollarOfFiscalIncome * fiscalDividends
+          //
+          -naiveChangeAtOrdinaryRatesPerDollarOfFiscalIncome * fiscalDividends
+
+      val additionDueToRetainedEarningsOfCloselyHeldCorps : Double =
+        if closelyHeldCorpTaxRetainedEarningsAtOrdinaryRates then
+          val retainedEarningsImputedToPersonInGroup =
+            // Note: averageShareOfCapGainsPlusDividendsPerGroup would be numInGroup * (fiscalCapitalGains + fiscalDividends) / fiscalCapGainsAndDividendsTotal
+            //       averageShareOfCapGainsPlusDividendsPerPersonInGroup is averageShareOfRetainedEarningsPerGroup / numInGroup = (fiscalCapitalGains + fiscalDividends) / fiscalCapGainsAndDividendsTotal
+            //       We use share of cap-gains plus dividends as our proxy for share of retained earnings
+            val averageShareOfCapGainsPlusDividendsPerPersonInGroup = (fiscalCapitalGains + fiscalDividends).toDouble / fiscalCapGainsAndDividendsTotal
+            closelyHeldCorpTotalRetainedEarningsInDollars * averageShareOfCapGainsPlusDividendsPerPersonInGroup
+          val pretaxRetainedEarningsImputedToPersonInGroup = retainedEarningsImputedToPersonInGroup / (1 - currentFederalCorporateTaxRate)
+          (avgOrdinaryMarginalTaxRate + naiveChangeAtOrdinaryRatesPerDollarOfFiscalIncome - proposedFederalCorporateTaxRate) * pretaxRetainedEarningsImputedToPersonInGroup
+        else
+          0
+
+      val correctedChange = naiveChangeAtOrdinaryRates + additionDueToCapGainsPreference + additionDueToDividendTreatment + additionDueToRetainedEarningsOfCloselyHeldCorps
+      val correctedChangeAsShareOfIncome = correctedChange / rebasedAverageIncomeForGroup
+      val crowdOutFactor = (1 - computedNationalIncomeTaxRateForGroup - computedValueAddedTaxRateForGroup)
+      crowdOutFactor * math.max(effectiveIncomeTaxShareOfIncome + correctedChangeAsShareOfIncome, 0d)
+
+    protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
+      val baselineTaxSchedule                                               = model.leversSchedule(IndividualIncomeTaxSchedule) // we don't treat this as a lever though, ans shift with counterfactual. we always want the baseline schedule here
+      val avgOrdinaryMarginalTaxRate                                        = model.dataDouble(AvgOrdinaryMarginalTaxRate)( g )
+      val avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent             = model.dataDouble(AvgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent)( g )
+      val closelyHeldCorpTaxRetainedEarningsAtOrdinaryRates                 = model.orPrefer(counterfactual)(CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates)
+      val closelyHeldCorpTotalRetainedEarnings                              = model.parametersDouble(CloselyHeldCorpTotalRetainedEarnings)
+      val computedNationalIncomeTaxRateForGroup                             = prev(NationalIncomeTax)( g ).taxRateUnder(counterfactual)
+      val computedValueAddedTaxRateForGroup                                 = prev(ValueAddedTax)( g ).taxRateUnder(counterfactual)
+      val corporateTaxProposedEffectiveRate                                 = model.orPrefer(counterfactual)(CorporateTaxProposedEffectiveRate)
+      val corporateTaxCurrentDomesticProfits                                = model.parametersDouble(CorporateTaxCurrentDomesticProfits)
+      val corporateTaxCurrentDomesticReceipts                               = model.parametersDouble(CorporateTaxCurrentDomesticReceipts)
+      val corporateTaxCurrentForeignReceipts                                = model.parametersDouble(CorporateTaxCurrentForeignReceipts)
+      val corporateTaxForeignReceiptsUnderStrongerEnforcement               = model.parametersDouble(CorporateTaxForeignReceiptsUnderStrongerEnforcement)
+      val corporateTaxDeployStrongerEnforcement                             = model.orPrefer(counterfactual)(CorporateTaxDeployStrongerEnforcement)
+      val corporateTaxCurrentStateReceipts                                  = model.parametersDouble(CorporateTaxCurrentStateReceipts)
+      val effectiveIncomeTaxShareOfIncome                                   = model.dataDouble(EffectiveIncomeTaxShareOfIncome)( g )
+      val fiscalCapitalGains                                                = model.dataInt(FiscalCapitalGains)( g )
+      val fiscalDividends                                                   = model.dataInt(FiscalDividends)( g )
+      val fiscalIncomeIncludingCapitalGains                                 = model.dataInt(FiscalIncomeIncludingCapitalGains)( g )
+      val fiscalCapGainsAndDividendsTotal                                   = SaezZucman2019DataBridge.totalGainsAndDividends
+      val incomeExcessCurve                                                 = model.dataExcessCurve(IncomeExcessCurve)( g )
+      val individualIncomeTaxCapitalGainsTaxedAtOrdinaryRate                = model.orPrefer(counterfactual)(IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate)
+      val individualIncomeTaxDividendsTaxedAtOrdinaryRate                   = model.orPrefer(counterfactual)(IndividualIncomeTaxDividendsTaxedAtOrdinaryRate) // ignored if IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate is true
+      val individualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate = model.orPrefer(counterfactual)(IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate) // if true IndividualIncomeTaxDividendsTaxedAtOrdinaryRate is ignored
+      val replicateWorkbookForeignDoubleCount                               = model.parametersBoolean(ReplicateWorkbookForeignDoubleCount)
+      val individualIncomeTaxSchedule                                       = model.orPrefer(counterfactual)(IndividualIncomeTaxSchedule)
+      val rebasedAverageIncomeForGroup                                      = model.rebasedAverageIncome( g )
+      computeTaxRate(
+        baselineTaxSchedule                                               = baselineTaxSchedule,
+        avgOrdinaryMarginalTaxRate                                        = avgOrdinaryMarginalTaxRate,
+        avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent             = avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent,
+        closelyHeldCorpTaxRetainedEarningsAtOrdinaryRates                 = closelyHeldCorpTaxRetainedEarningsAtOrdinaryRates,
+        closelyHeldCorpTotalRetainedEarningsInDollars                     = closelyHeldCorpTotalRetainedEarnings * 1_000_000_000,
+        computedNationalIncomeTaxRateForGroup                             = computedNationalIncomeTaxRateForGroup,
+        computedValueAddedTaxRateForGroup                                 = computedValueAddedTaxRateForGroup,
+        corporateTaxProposedEffectiveRate                                 = corporateTaxProposedEffectiveRate,
+        corporateTaxCurrentDomesticProfits                                = corporateTaxCurrentDomesticProfits,
+        corporateTaxCurrentDomesticReceipts                               = corporateTaxCurrentDomesticReceipts,
+        corporateTaxCurrentForeignReceipts                                = corporateTaxCurrentForeignReceipts,
+        corporateTaxCurrentStateReceipts                                  = corporateTaxCurrentStateReceipts,
+        corporateTaxForeignReceiptsUnderStrongerEnforcement               = corporateTaxForeignReceiptsUnderStrongerEnforcement,
+        corporateTaxDeployStrongerEnforcement                             = corporateTaxDeployStrongerEnforcement,
+        effectiveIncomeTaxShareOfIncome                                   = effectiveIncomeTaxShareOfIncome,
+        fiscalCapitalGains                                                = fiscalCapitalGains.toDouble,
+        fiscalDividends                                                   = fiscalDividends.toDouble,
+        fiscalIncomeIncludingCapitalGains                                 = fiscalIncomeIncludingCapitalGains.toDouble,
+        fiscalCapGainsAndDividendsTotal                                   = fiscalCapGainsAndDividendsTotal.toDouble,
+        incomeExcessCurve                                                 = incomeExcessCurve,
+        individualIncomeTaxCapitalGainsTaxedAtOrdinaryRate                = individualIncomeTaxCapitalGainsTaxedAtOrdinaryRate,
+        individualIncomeTaxDividendsTaxedAtOrdinaryRate                   = individualIncomeTaxDividendsTaxedAtOrdinaryRate,
+        individualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate = individualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate,
+        replicateWorkbookForeignDoubleCount                               = replicateWorkbookForeignDoubleCount,
+        individualIncomeTaxSchedule                                       = individualIncomeTaxSchedule,
+        rebasedAverageIncomeForGroup                                      = rebasedAverageIncomeForGroup
+      ) 
+    override val requires = Set(
+      IndividualIncomeTaxSchedule,
+      AvgOrdinaryMarginalTaxRate,
+      AvgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent,
+      CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates,
+      CloselyHeldCorpTotalRetainedEarnings,
+      CorporateTaxProposedEffectiveRate,
+      CorporateTaxCurrentDomesticProfits,
+      CorporateTaxCurrentDomesticReceipts,
+      CorporateTaxCurrentForeignReceipts,
+      CorporateTaxForeignReceiptsUnderStrongerEnforcement,
+      CorporateTaxDeployStrongerEnforcement,
+      CorporateTaxCurrentStateReceipts,
+      EffectiveIncomeTaxShareOfIncome,
+      FiscalCapitalGains,
+      FiscalDividends,
+      FiscalIncomeIncludingCapitalGains,
+      IncomeExcessCurve,
+      IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate,
+      IndividualIncomeTaxDividendsTaxedAtOrdinaryRate,
+      IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate,
+      ReplicateWorkbookForeignDoubleCount,
+      IndividualIncomeTaxSchedule
+    )
+    override val depends  = Set(NationalIncomeTax,ValueAddedTax)
+
+
