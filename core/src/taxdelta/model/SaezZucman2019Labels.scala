@@ -34,8 +34,6 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case PayrollTaxShareOfIncome
     case PropertyTaxShareOfIncome
     case SalesTaxShareOfIncome
-
-  enum LDInt extends InputLabel:
     case NationalIncomeTaxBase
     case NumberOfAdults
     case FiscalCapitalGains
@@ -81,12 +79,11 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case ValueAddedTax
     case WealthTax
 
-  export LPBoolean.*, LPDouble.*, LDDouble.*, LDInt.*, LDExcessCurve.*, LLBoolean.*, LLDouble.*, LLSchedule.*, LInstrument.*
+  export LPBoolean.*, LPDouble.*, LDDouble.*, LDExcessCurve.*, LLBoolean.*, LLDouble.*, LLSchedule.*, LInstrument.*
 
   override type LabelParameterBoolean = LPBoolean
   override type LabelParameterDouble  = LPDouble
   override type LabelDataDouble       = LDDouble
-  override type LabelDataInt          = LDInt
   override type LabelDataExcessCurve  = LDExcessCurve
   override type LabelLeverBoolean     = LLBoolean
   override type LabelLeverDouble      = LLDouble

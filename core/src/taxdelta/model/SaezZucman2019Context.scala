@@ -35,16 +35,14 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     EffectiveIncomeTaxShareOfIncome                       -> SaezZucman2019DataBridge.effectiveIncomeTaxShareOfIncome,
     EmployersHealthInsuranceContributionShareOfIncome     -> SaezZucman2019DataBridge.healthTaxShareOfIncome,
     EstateTaxShareOfIncome                                -> SaezZucman2019DataBridge.estateTaxShareOfIncome,
+    FiscalCapitalGains                                    -> SaezZucman2019DataBridge.fiscalCapitalGains,
+    FiscalDividends                                       -> SaezZucman2019DataBridge.fiscalDividends,
+    FiscalIncomeIncludingCapitalGains                     -> SaezZucman2019DataBridge.fiscalIncomeIncludingCapGains,
+    NationalIncomeTaxBase                                 -> SaezZucman2019DataBridge.nationalIncomeTaxBase,
+    NumberOfAdults                                        -> SaezZucman2019DataBridge.numberOfAdults,
     PayrollTaxShareOfIncome                               -> SaezZucman2019DataBridge.payrollTaxShareOfIncome,
     PropertyTaxShareOfIncome                              -> SaezZucman2019DataBridge.propertyTaxShareOfIncome,
     SalesTaxShareOfIncome                                 -> SaezZucman2019DataBridge.salesTaxShareOfIncome,
-  )
-  val dataInt = Map(
-    NationalIncomeTaxBase             -> SaezZucman2019DataBridge.nationalIncomeTaxBase,
-    NumberOfAdults                    -> SaezZucman2019DataBridge.numberOfAdults,
-    FiscalCapitalGains                -> SaezZucman2019DataBridge.fiscalCapitalGains,
-    FiscalDividends                   -> SaezZucman2019DataBridge.fiscalDividends,
-    FiscalIncomeIncludingCapitalGains -> SaezZucman2019DataBridge.fiscalIncomeIncludingCapGains,
   )
   val dataExcessCurve = Map(
     IncomeExcessCurve -> SaezZucman2019DataBridge.incomeExcessCurves,
@@ -101,7 +99,6 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     parametersBoolean = parametersBoolean,
     parametersDouble  = parametersDouble,
     dataDouble        = dataDouble,
-    dataInt           = dataInt,
     dataExcessCurve   = dataExcessCurve,
     leversBoolean     = Baseline.leversBoolean,
     leversDouble      = Baseline.leversDouble,

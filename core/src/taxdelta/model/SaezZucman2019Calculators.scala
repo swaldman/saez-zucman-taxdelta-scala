@@ -5,7 +5,7 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
   import context.*
 
   object Rebaser extends AverageIncomeRebaser:
-    override def apply(g : Group, model : Model) = g.averageIncome + (model.parametersDouble(FiscalCapitalGainsTaxableShare) * model.dataInt(FiscalCapitalGains)(g))
+    override def apply(g : Group, model : Model) = g.averageIncome + (model.parametersDouble(FiscalCapitalGainsTaxableShare) * model.dataDouble(FiscalCapitalGains)(g))
     override def requires : Set[InputLabel] = Set(FiscalCapitalGains,FiscalCapitalGainsTaxableShare)
 
   object CorporateTaxInstrument extends Instrument.Unified:
@@ -91,7 +91,7 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       (proposedNationalIncomeTaxRate * nationalIncomeTaxBase) / rebasedAverageIncome
     protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
       val nitRate = model.orPrefer(counterfactual)(NationalIncomeTaxRate)
-      computeTaxRate( nitRate, model.dataInt(NationalIncomeTaxBase)(g), model.rebasedAverageIncome(g) )
+      computeTaxRate( nitRate, model.dataDouble(NationalIncomeTaxBase)(g), model.rebasedAverageIncome(g) )
     override val requires = Set(NationalIncomeTaxBase,NationalIncomeTaxRate)
 
   object PayrollTaxInstrument extends Instrument.Unified:
@@ -373,9 +373,9 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       val corporateTaxDeployStrongerEnforcement                             = model.orPrefer(counterfactual)(CorporateTaxDeployStrongerEnforcement)
       val corporateTaxCurrentStateReceipts                                  = model.parametersDouble(CorporateTaxCurrentStateReceipts)
       val effectiveIncomeTaxShareOfIncome                                   = model.dataDouble(EffectiveIncomeTaxShareOfIncome)( g )
-      val fiscalCapitalGains                                                = model.dataInt(FiscalCapitalGains)( g )
-      val fiscalDividends                                                   = model.dataInt(FiscalDividends)( g )
-      val fiscalIncomeIncludingCapitalGains                                 = model.dataInt(FiscalIncomeIncludingCapitalGains)( g )
+      val fiscalCapitalGains                                                = model.dataDouble(FiscalCapitalGains)( g )
+      val fiscalDividends                                                   = model.dataDouble(FiscalDividends)( g )
+      val fiscalIncomeIncludingCapitalGains                                 = model.dataDouble(FiscalIncomeIncludingCapitalGains)( g )
       val fiscalCapGainsAndDividendsTotal                                   = SaezZucman2019DataBridge.totalGainsAndDividends
       val incomeExcessCurve                                                 = model.dataExcessCurve(IncomeExcessCurve)( g )
       val individualIncomeTaxCapitalGainsTaxedAtOrdinaryRate                = model.orPrefer(counterfactual)(IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate)

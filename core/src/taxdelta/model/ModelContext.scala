@@ -6,18 +6,15 @@ abstract class ModelContext:
 
   /* Constants assumed by the model */
   type LabelParameterDouble  <: InputLabel
-  type LabelParameterInt     <: InputLabel
   type LabelParameterBoolean <: InputLabel
 
   /* Per-group data */
   type LabelDataDouble      <: InputLabel
-  type LabelDataInt         <: InputLabel
   type LabelDataBoolean     <: InputLabel
   type LabelDataExcessCurve <: InputLabel
 
   /* Lever values the model assumes but which change change in countefactuals */
   type LabelLeverDouble   <: InputLabel
-  type LabelLeverInt      <: InputLabel
   type LabelLeverBoolean  <: InputLabel
   type LabelLeverSchedule <: InputLabel
 
@@ -60,7 +57,6 @@ abstract class ModelContext:
 
   final case class Counterfactual(
     leversDouble     : Map[LabelLeverDouble,Double]     = Map.empty,
-    leversInt        : Map[LabelLeverInt,Int]           = Map.empty,
     leversBoolean    : Map[LabelLeverBoolean,Boolean]   = Map.empty,
     leversSchedule   : Map[LabelLeverSchedule,Schedule] = Map.empty,
   )
@@ -68,14 +64,11 @@ abstract class ModelContext:
   final case class Model(
     groups            : Groups,
     parametersDouble  : Map[LabelParameterDouble,Double]                 = Map.empty,
-    parametersInt     : Map[LabelParameterInt,Int]                       = Map.empty,
     parametersBoolean : Map[LabelParameterBoolean,Boolean]               = Map.empty,
     dataDouble        : Map[LabelDataDouble,Map[Group,Double]]           = Map.empty,
-    dataInt           : Map[LabelDataInt,Map[Group,Int]]                 = Map.empty,
     dataBoolean       : Map[LabelDataBoolean,Map[Group,Boolean]]         = Map.empty,
     dataExcessCurve   : Map[LabelDataExcessCurve,Map[Group,ExcessCurve]] = Map.empty,
     leversDouble      : Map[LabelLeverDouble,Double]                     = Map.empty,
-    leversInt         : Map[LabelLeverInt,Int]                           = Map.empty,
     leversBoolean     : Map[LabelLeverBoolean,Boolean]                   = Map.empty,
     leversSchedule    : Map[LabelLeverSchedule,Schedule]                 = Map.empty,
     rebaser           : AverageIncomeRebaser                             = AverageIncomeRebaser.DontRebase,
@@ -93,19 +86,15 @@ abstract class ModelContext:
     val requires : Set[InputLabel] = rebaser.requires ++ instruments.flatMap( (k,v) => v.requires )
     val offers   : Set[InputLabel] =
       parametersDouble.keySet  ++
-      parametersInt.keySet     ++
       parametersBoolean.keySet ++
       dataDouble.keySet        ++
-      dataInt.keySet           ++
       dataBoolean.keySet       ++
       dataExcessCurve.keySet   ++
       leversDouble.keySet      ++
-      leversInt.keySet         ++
       leversBoolean.keySet     ++
       leversSchedule.keySet
 
     def orPrefer( counterfactual : Option[Counterfactual] )( lld : LabelLeverDouble )   : Double   = counterfactual.fold( this.leversDouble(lld) )( cf => cf.leversDouble.getOrElse(lld,this.leversDouble(lld)) )
-    def orPrefer( counterfactual : Option[Counterfactual] )( lli : LabelLeverInt )      : Int      = counterfactual.fold( this.leversInt(lli) )( cf => cf.leversInt.getOrElse(lli,this.leversInt(lli)) )
     def orPrefer( counterfactual : Option[Counterfactual] )( llb : LabelLeverBoolean )  : Boolean  = counterfactual.fold( this.leversBoolean(llb) )( cf => cf.leversBoolean.getOrElse(llb,this.leversBoolean(llb)) )
     def orPrefer( counterfactual : Option[Counterfactual] )( lls : LabelLeverSchedule ) : Schedule = counterfactual.fold( this.leversSchedule(lls) )( cf => cf.leversSchedule.getOrElse(lls,this.leversSchedule(lls)) )
 

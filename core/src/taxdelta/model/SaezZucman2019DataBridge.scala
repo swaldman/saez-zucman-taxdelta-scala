@@ -51,20 +51,16 @@ object SaezZucman2019DataBridge:
 
   lazy val incomeExcessCurves : Map[Group,ExcessCurve.Default] = groups.toSeq.map( g => (g, incomeExcessCurveForGroup(g)) ).toMap
 
-  private def intItemForGroup(g : Group, colHeader : String) : Int =
-    val rowLabel = rowColValues(g)
-    Sz2019Worksheet_databig.value(rowLabel,colHeader).toInt
-
   private def doubleItemForGroup(g : Group, colHeader : String) : Double =
     val rowLabel = rowColValues(g)
     Sz2019Worksheet_databig.doubleValue(rowLabel,colHeader)
 
   // should I rename the things that represent group averages as such
-  private def fiscalCapitalGainsForGroup(g : Group)            : Int = intItemForGroup(g, "fikgi")
-  private def fiscalDividendsForGroup(g : Group)               : Int = intItemForGroup(g, "fidiv")
-  private def fiscalIncomeIncludingCapGainsForGroup(g : Group) : Int = intItemForGroup(g, "agi")
-  private def nationalIncomeTaxBaseForGroup(g : Group)         : Int = intItemForGroup(g, "nitaxbase")
-  private def numberOfAdultsForGroup(g : Group)                : Int = intItemForGroup(g, "nb")
+  private def fiscalCapitalGainsForGroup(g : Group)            : Double = doubleItemForGroup(g, "fikgi")
+  private def fiscalDividendsForGroup(g : Group)               : Double = doubleItemForGroup(g, "fidiv")
+  private def fiscalIncomeIncludingCapGainsForGroup(g : Group) : Double = doubleItemForGroup(g, "agi")
+  private def nationalIncomeTaxBaseForGroup(g : Group)         : Double = doubleItemForGroup(g, "nitaxbase")
+  private def numberOfAdultsForGroup(g : Group)                : Double = doubleItemForGroup(g, "nb")
 
   private def avgOrdinaryMarginalTaxRateForGroup(g : Group)                            : Double = doubleItemForGroup(g,"mtr")
   private def avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercentForGroup(g : Group) : Double = doubleItemForGroup(g,"mtrextra")
@@ -76,11 +72,11 @@ object SaezZucman2019DataBridge:
   private def salesTaxShareOfIncomeForGroup(g : Group)                                 : Double = doubleItemForGroup(g,"salestax")
   private def propertyTaxShareOfIncomeForGroup(g : Group)                              : Double = doubleItemForGroup(g,"proptax")
 
-  lazy val fiscalCapitalGains            : Map[Group,Int] = groups.toSeq.map( g => (g, fiscalCapitalGainsForGroup(g))            ).toMap
-  lazy val fiscalDividends               : Map[Group,Int] = groups.toSeq.map( g => (g, fiscalDividendsForGroup(g))               ).toMap
-  lazy val fiscalIncomeIncludingCapGains : Map[Group,Int] = groups.toSeq.map( g => (g, fiscalIncomeIncludingCapGainsForGroup(g)) ).toMap
-  lazy val nationalIncomeTaxBase         : Map[Group,Int] = groups.toSeq.map( g => (g, nationalIncomeTaxBaseForGroup(g))         ).toMap
-  lazy val numberOfAdults                : Map[Group,Int] = groups.toSeq.map( g => (g, numberOfAdultsForGroup(g))                ).toMap
+  lazy val fiscalCapitalGains            : Map[Group,Double] = groups.toSeq.map( g => (g, fiscalCapitalGainsForGroup(g))            ).toMap
+  lazy val fiscalDividends               : Map[Group,Double] = groups.toSeq.map( g => (g, fiscalDividendsForGroup(g))               ).toMap
+  lazy val fiscalIncomeIncludingCapGains : Map[Group,Double] = groups.toSeq.map( g => (g, fiscalIncomeIncludingCapGainsForGroup(g)) ).toMap
+  lazy val nationalIncomeTaxBase         : Map[Group,Double] = groups.toSeq.map( g => (g, nationalIncomeTaxBaseForGroup(g))         ).toMap
+  lazy val numberOfAdults                : Map[Group,Double] = groups.toSeq.map( g => (g, numberOfAdultsForGroup(g))                ).toMap
 
   lazy val avgOrdinaryMarginalTaxRate                             : Map[Group,Double] = groups.toSeq.map( g => (g, avgOrdinaryMarginalTaxRateForGroup(g))                            ).toMap
   lazy val avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent  : Map[Group,Double] = groups.toSeq.map( g => (g, avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercentForGroup(g)) ).toMap
@@ -92,16 +88,16 @@ object SaezZucman2019DataBridge:
   lazy val effectiveIncomeTaxShareOfIncome                        : Map[Group,Double] = groups.toSeq.map( g => (g, effectiveIncomeTaxShareOfIncomeForGroup(g))                       ).toMap
   lazy val propertyTaxShareOfIncome                               : Map[Group,Double] = groups.toSeq.map( g => (g, propertyTaxShareOfIncomeForGroup(g))                              ).toMap
 
-  lazy val totalNumberOfAdults = numberOfAdults.valuesIterator.foldLeft(0L)( _ + _ )
+  lazy val totalNumberOfAdults = numberOfAdults.valuesIterator.foldLeft(0d)( _ + _ )
 
   lazy val totalCapitalGains =
-    fiscalCapitalGains.iterator.foldLeft(0L): (accum, next) =>
+    fiscalCapitalGains.iterator.foldLeft(0d): (accum, next) =>
         val (group, averageGain) = next
-        accum + numberOfAdults(group).toLong * averageGain
+        accum + numberOfAdults(group) * averageGain
 
   lazy val totalDividends =
-      fiscalDividends.iterator.foldLeft(0L): (accum, next) =>
+      fiscalDividends.iterator.foldLeft(0d): (accum, next) =>
         val (group, averageDividends) = next
-        accum + numberOfAdults(group).toLong * averageDividends
+        accum + numberOfAdults(group) * averageDividends
 
   lazy val totalGainsAndDividends = totalCapitalGains + totalDividends
