@@ -2,8 +2,9 @@ package taxdelta.model
 
 class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) extends SaezZucman2019Labels:
 
+  /* Basic parameters of the model */
   val defaultParametersBoolean = Map(
-    CountPrivateHealthPremiumsAsTax     -> false,
+    CountPrivateHealthPremiumsAsTax -> false,
 
     // for computing "integrated" dividends and retained-earnings,
     // the individual income tax instrument uses a proposedFederalCorporateTaxRate
@@ -28,6 +29,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     FiscalCapitalGainsTaxableShare                      -> 0.366d,
   )
 
+  /* Per-group data -- each value is a mapping of Groups to values */
   val dataDouble = Map(
     AvgOrdinaryMarginalTaxRate                            -> SaezZucman2019DataBridge.avgOrdinaryMarginalTaxRate,
     AvgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent -> SaezZucman2019DataBridge.avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent,
@@ -52,11 +54,15 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     WealthExcessCurve -> SaezZucman2019DataBridge.wealthExcessCurves.map(imputeHigherBracketsTopGroupOnly) 
   )
 
+  /* Precomputed aggregations of the data */
   val aggregationsDouble = Map(
     TotalGainsAndDividends -> SaezZucman2019DataBridge.totalGainsAndDividends
   )
 
+  /* The code that computes both the taxes and the income denominator they are defined against */
   val calculators     = new SaezZucman2019Calculators[this.type](this)
+
+  /* Preset counterfactuals to which we can apply the model and see changes from the baseline scenario */
   val counterfactuals = new SaezZucman2019Counterfactuals[this.type](this)
 
   // manage parameter overrides
@@ -66,6 +72,8 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
   require(unparsedParameterOverrides.isEmpty, "The following keys of parameterOverrides were unrecognized, or else their values were not of their expected type: " + unparsedParameterOverrides)
   val parametersBoolean = defaultParametersBoolean ++ overrideParametersBoolean
   val parametersDouble  = defaultParametersDouble ++ overrideParametersDouble
+
+  /* Baseline scenario */
 
   // note that we do need to build out baseline scenario after defining the
   // potentially overridden parameters, because our baseline depends upon
