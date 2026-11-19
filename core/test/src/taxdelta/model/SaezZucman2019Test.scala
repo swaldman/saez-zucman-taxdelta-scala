@@ -1,6 +1,7 @@
 package taxdelta.model
 
 import taxdelta.data.Sz2019Worksheet_databig as Databig
+import taxdelta.data.Sz2019Worksheet_calculatorbig as Calculatorbig
 
 /** Checks the Saez-Zucman 2019 instruments against the workbook's formulas (`calculatorbig`, columns K/Y, L/T, Q, R, S, U, V),
  *  recomputed here independently, straight from the `databig` columns.
@@ -736,3 +737,54 @@ class SaezZucman2019Test extends munit.FunSuite:
     for g <- groups do assertEqualsDouble(d(g), r(g) - b(g), 1e-15, s"group ${label(g)}")
     for lbl <- List[LInstrument](NationalIncomeTax, ValueAddedTax, PropertyTax, SalesAndExciseTax); (g, x) <- out(lbl) do
       assertEqualsDouble(x.deltaTaxRate, 0.0, 0.0, s"$lbl, group ${label(g)}")
+
+  // ---- Presets (calculatorbig columns EA–EN) -----------------------------------------------------------------
+
+  /* The workbook keeps each preset's total-rate curve, pasted from earlier runs of the plan, in calculatorbig
+   * EA–EG (private health premiums shown as a tax) and EH–EN (not shown). Its rows are databig's, in order. */
+  private val pastedPresetColumns = Seq(
+    ("EA", "biden", true), ("EB", "buttigieg", true), ("EC", "warren", true), ("ED", "sanders", true),
+    ("EE", "book", true), ("EF", "current", true), ("EG", "obama", true),
+    ("EH", "biden", false), ("EI", "buttigieg", false), ("EJ", "warren", false), ("EK", "sanders", false),
+    ("EL", "book", false), ("EM", "current", false), ("EN", "obama", false))
+
+  /* EE and EF were pasted from an earlier version of the data: they differ from the current data's run in the
+   * top 0.1% only (up to ~2e-3). The evidence: under the book plan private premiums are abolished, so its curve
+   * cannot depend on whether they are shown as a tax, yet EE and EL differ. (The main repo's parity engine,
+   * which reproduces the other twelve columns to 1e-12, finds the same.) */
+  private val stalePasteTolerance = Map("EE" -> 2e-3, "EF" -> 3e-4)
+
+  private def pastedColumn(column: String): IndexedSeq[Double] =
+    val c = Calculatorbig.header.indexOf(column)
+    (0 until Calculatorbig.numRows).map(Calculatorbig.doubleValue(_, c))
+
+  test("presets: the cached calculatorbig rows line up with databig's groups (same adults, nb = column B)"):
+    assertEquals(Calculatorbig.numRows, groups.length)
+    val b = pastedColumn("B")
+    for (g, i) <- groups.zipWithIndex do assertEquals(b(i), adults(g), s"group ${label(g)}")
+
+  test("presets: the counterfactuals cover every plan the workbook presets"):
+    assertEquals(counterfactuals.all.keySet, pastedPresetColumns.map(_._2).toSet - "current")
+
+  for (column, plan, shown) <- pastedPresetColumns do
+    test(s"presets: '$plan' (premiums shown as a tax = $shown) reproduces the workbook's pasted total, column $column, in every group"):
+      val ctx = if shown then healthShown else this.ctx
+      val cf  = if plan == "current" then ctx.Counterfactual() else ctx.counterfactuals.all(plan)
+      val out = ctx.mainModel.run(cf).values
+      val gs  = ctx.mainModel.groups.toSeq
+      val expected = pastedColumn(column)
+      val tolerance = stalePasteTolerance.getOrElse(column, RateTolerance)
+      for (g, i) <- gs.zipWithIndex do
+        val t = out.map(_(g).reformedTaxRate).sum
+        assertEqualsDouble(t, expected(i), tolerance, s"$column $plan, group ${label(g)}")
+
+  test("presets: counterfactuals.Obama is the saved active plan, matching the cached Z column in every group"):
+    val t = total(mainModel.run(counterfactuals.Obama), _.reformedTaxRate)
+    val z = pastedColumn("Z")
+    for (g, i) <- groups.zipWithIndex do assertEqualsDouble(t(g), z(i), RateTolerance, s"group ${label(g)}")
+
+  test("presets: counterfactuals.Sanders carries the workbook's grid-snapped wealth tax with the FTT surcharge"):
+    val s = counterfactuals.Sanders.leversOtherAs[Schedule](WealthTaxSchedule)
+    assertEquals(s.thresholds, sandersSchedule.thresholds)
+    for (a, e) <- s.rates.zip(sandersSchedule.rates) do assertEqualsDouble(a, e, 1e-15)
+    assertEquals(s.rates.length, sandersSchedule.rates.length)
