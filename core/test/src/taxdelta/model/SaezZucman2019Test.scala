@@ -140,7 +140,7 @@ class SaezZucman2019Test extends munit.FunSuite:
   // ---- Baseline ----------------------------------------------------------------------------------------------
 
   test("instruments run in order and all report results"):
-    val all = List[LInstrument](EstateTax, HealthInsuranceTax, NationalIncomeTax, PayrollTax, SalesAndExciseTax, ValueAddedTax, WealthTax, CorporateTax, IndividualIncomeTax)
+    val all = List[LInstrument](EstateTax, HealthInsuranceTax, NationalIncomeTax, PayrollTax, PropertyTax, SalesAndExciseTax, ValueAddedTax, WealthTax, CorporateTax, IndividualIncomeTax)
     assertEquals(model.run(Counterfactual()).keySet, all.toSet)
     assertEquals(model.instruments.map(_._1), all)
 
@@ -652,3 +652,80 @@ class SaezZucman2019Test extends munit.FunSuite:
     assert(order.indexOf(IndividualIncomeTax) > order.indexOf(ValueAddedTax))
     val iit = model.instruments.find(_._1 == IndividualIncomeTax).get
     intercept[IllegalArgumentException](model.copy(instruments = iit :: model.instruments.filterNot(_ == iit)))
+
+  // ---- Property tax (column I) -------------------------------------------------------------------------------
+
+  test("property tax: the baseline is proptax (column I) in every group, exactly"):
+    for (g, b) <- baseline(PropertyTax) do assertEqualsDouble(b, col(g, "proptax"), 0.0, s"group ${label(g)}")
+
+  test("property tax: the baseline aggregate matches the cached calculatorbig!I137"):
+    assertEqualsDouble(aggregate(baseline(PropertyTax)), 2.7725578159961208e-2, 1e-15)
+
+  test("property tax: no lever moves it, under any preset (the workbook never reforms it)"):
+    val cfs = counterfactuals.Warren :: sanders :: nit7 :: vat10 :: salesReduction(0.5) :: incomeTaxPresets.map(incomeTaxCounterfactual(_))
+    for cf <- cfs; (g, r) <- model.run(cf)(PropertyTax) do
+      assertEqualsDouble(r.reformedTaxRate, col(g, "proptax"), 0.0, s"group ${label(g)}")
+      assertEqualsDouble(r.deltaTaxRate, 0.0, 0.0, s"group ${label(g)}")
+
+  test("property tax: declares its input, so a model without the proptax data is rejected"):
+    intercept[IllegalArgumentException](model.copy(dataDouble = model.dataDouble - PropertyTaxShareOfIncome))
+
+  // ---- Totals (columns E and Z) ------------------------------------------------------------------------------
+
+  /** The sum of every instrument's rate, for each group. */
+  private def total(rates: Map[LInstrument, Map[Group, Instrument.Result]], pick: Instrument.Result => Double): Map[Group, Double] =
+    groups.map(g => (g, rates.values.map(byGroup => pick(byGroup(g))).sum)).toMap
+
+  /** The saved workbook's active plan (interface column D, Obama): estate, corporate and income tax changes;
+   *  no wealth tax, NIT, VAT, health or sales changes, and no payroll head tax. */
+  private val obamaAll =
+    val iit = incomeTaxCounterfactual(preset("Obama"))
+    Counterfactual(
+      leversDouble   = iit.leversDouble ++ estateObama.leversDouble,
+      leversBoolean  = iit.leversBoolean,
+      leversSchedule = iit.leversSchedule)
+
+  test("totals: the model now covers every tax in the workbook; the current total is effrate, the sum of databig H–M"):
+    val t = total(model.run(Counterfactual()), _.baselineTaxRate)
+    for g <- groups do
+      assertEqualsDouble(t(g), col(g, "effrate"), 1e-7, s"group ${label(g)}")
+
+  test("totals: the current total matches the cached calculatorbig!E8 (P0–1), E135 (top 400) and E137 (aggregate)"):
+    val t = total(model.run(Counterfactual()), _.baselineTaxRate)
+    assertEqualsDouble(t(groups.head), 0.27588452569489164, 1e-7)
+    assertEqualsDouble(t(model.groups.topGroup), 0.23041529022157192, 1e-7)
+    assertEqualsDouble(aggregate(t), 0.2771540411051811, 1e-7)
+
+  test("totals: with private premiums shown as a tax, the current total is effrate + healthtax (E = G + L)"):
+    val t = healthShown.model.run(healthShown.Counterfactual()).values.map(_.map((g, r) => (g, r.baselineTaxRate)))
+    for g <- groups do
+      val sum = t.map(byGroup => byGroup.collectFirst { case (h, v) if label(h) == label(g) => v }.get).sum
+      assertEqualsDouble(sum, col(g, "effrate") + col(g, "healthtax"), 1e-7, s"group ${label(g)}")
+
+  test("totals: the saved active plan (Obama) matches the cached total rate Z8 (P0–1), Z135 (top 400) and Z137 (aggregate)"):
+    val t = total(model.run(obamaAll), _.reformedTaxRate)
+    assertEqualsDouble(t(groups.head), 0.27803246956704319, RateTolerance)
+    assertEqualsDouble(t(model.groups.topGroup), 0.26433688109052716, RateTolerance)
+    assertEqualsDouble(aggregate(t), 0.29276439871392085, 1e-6)
+
+  test("totals: Warren's full plan (counterfactuals.Warren) matches Z = I + Y + Q…X in every group"):
+    val t = total(model.run(counterfactuals.Warren), _.reformedTaxRate)
+    val warrenWealth = counterfactuals.Warren.leversSchedule(WealthTaxSchedule)
+    def workbookTotal(g: Group) =
+      col(g, "proptax")                                  // I
+        + workbookPayrollRate(headTax = true)(g)         // Y
+        + workbookWealthTaxRate(warrenWealth, 0.15)(g)   // Q
+        + workbookHealthRate(shown = false, 1.0)(g)      // T (R and S are zero)
+        + workbookEstateRate(0.55, 0.40)(g)              // U
+        + workbookCorporateRate(0.30, true)(g)           // V
+        + workbookIncomeTaxRate(preset("Warren"))(g)     // W
+        + workbookSalesRate(0.0)(g)                      // X
+    assertEveryGroup(t, workbookTotal)
+
+  test("totals: the deltas sum to the change in the total, and only the reformed taxes move under Warren"):
+    val out = model.run(counterfactuals.Warren)
+    val d = total(out, _.deltaTaxRate)
+    val (b, r) = (total(out, _.baselineTaxRate), total(out, _.reformedTaxRate))
+    for g <- groups do assertEqualsDouble(d(g), r(g) - b(g), 1e-15, s"group ${label(g)}")
+    for lbl <- List[LInstrument](NationalIncomeTax, ValueAddedTax, PropertyTax, SalesAndExciseTax); (g, x) <- out(lbl) do
+      assertEqualsDouble(x.deltaTaxRate, 0.0, 0.0, s"$lbl, group ${label(g)}")
