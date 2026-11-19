@@ -82,6 +82,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
       EstateTaxProposedTopRate                          -> parametersDouble(EstateTaxCurrentStatutoryTopRate), // no change in baseline
       ReductionOfEmployerSponsoredPrivateHealthPremiums -> 0.0d,
       NationalIncomeTaxRate                             -> 0.0d,
+      SalesAndExciseTaxReduction                        -> 0.0d,
       ValueAddedTaxRate                                 -> 0.0d,
       WealthTaxEvasionRate                              -> 0.15d,
     )
@@ -109,6 +110,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
                           HealthInsuranceTax  -> calculators.HealthInsuranceTaxInstrument,
                           NationalIncomeTax   -> calculators.NationalIncomeTaxInstrument,
                           PayrollTax          -> calculators.PayrollTaxInstrument,
+                          SalesAndExciseTax   -> calculators.SalesAndExciseTaxInstrument,
                           ValueAddedTax       -> calculators.ValueAddedTaxInstrument,
                           WealthTax           -> calculators.WealthTaxInstrument,
                           CorporateTax        -> calculators.CorporateTaxInstrument, // depends upon NationalIncomeTax and ValueAddedTax having been executed previously

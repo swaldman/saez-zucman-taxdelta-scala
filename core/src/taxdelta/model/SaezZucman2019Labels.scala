@@ -58,9 +58,10 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case CorporateTaxProposedEffectiveRate
     case EstateTaxAnticipatedAvoidanceRate
     case EstateTaxProposedTopRate
-    case NationalIncomeTaxRate // presumably a flat tax?
+    case NationalIncomeTaxRate // a flat tax
     case ValueAddedTaxRate
     case ReductionOfEmployerSponsoredPrivateHealthPremiums
+    case SalesAndExciseTaxReduction // existing tax rescaled by (1 - SalesAndExciseTaxReduction)
     case WealthTaxEvasionRate
 
   enum LLSchedule extends InputLabel:
@@ -74,6 +75,7 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case IndividualIncomeTax
     case NationalIncomeTax
     case PayrollTax
+    case SalesAndExciseTax
     case ValueAddedTax
     case WealthTax
 

@@ -140,7 +140,7 @@ class SaezZucman2019Test extends munit.FunSuite:
   // ---- Baseline ----------------------------------------------------------------------------------------------
 
   test("instruments run in order and all report results"):
-    val all = List[LInstrument](EstateTax, HealthInsuranceTax, NationalIncomeTax, PayrollTax, ValueAddedTax, WealthTax, CorporateTax, IndividualIncomeTax)
+    val all = List[LInstrument](EstateTax, HealthInsuranceTax, NationalIncomeTax, PayrollTax, SalesAndExciseTax, ValueAddedTax, WealthTax, CorporateTax, IndividualIncomeTax)
     assertEquals(model.run(Counterfactual()).keySet, all.toSet)
     assertEquals(model.instruments.map(_._1), all)
 
@@ -196,6 +196,40 @@ class SaezZucman2019Test extends munit.FunSuite:
 
   test("national income tax at 7%: aggregate rate"):
     assertEqualsDouble(aggregate(reformed(nit7, NationalIncomeTax)), aggregate(workbookNationalIncomeTaxRate(0.07)), 1e-6)
+
+  // ---- Sales and excise taxes (column X) ---------------------------------------------------------------------
+
+  /** calculatorbig!X8 = F8 · (1 − C146), with F8 = databig!H (salestax) and C146 = interface D15. */
+  private def workbookSalesRate(reduction: Double)(g: Group): Double = col(g, "salestax") * (1 - reduction)
+  private def salesReduction(r: Double) = Counterfactual(leversDouble = Map(SalesAndExciseTaxReduction -> r))
+
+  test("sales and excise: the baseline lever is no reduction (interface C15), and the baseline is salestax exactly"):
+    assertEquals(model.leversDouble(SalesAndExciseTaxReduction), 0.0)
+    for (g, b) <- baseline(SalesAndExciseTax) do assertEqualsDouble(b, col(g, "salestax"), 0.0, s"group ${label(g)}")
+
+  test("sales and excise: the book plan's 50% reduction (interface G15) halves every group"):
+    assertEveryGroup(reformed(salesReduction(0.5), SalesAndExciseTax), workbookSalesRate(0.5))
+    for (g, r) <- reformed(salesReduction(0.5), SalesAndExciseTax) do
+      assertEqualsDouble(r, col(g, "salestax") / 2, 1e-17, s"group ${label(g)}")
+
+  test("sales and excise: a negative reduction scales every group up proportionally, keeping the current profile"):
+    val r = reformed(salesReduction(-0.2), SalesAndExciseTax)
+    for g <- groups if col(g, "salestax") > 0 do
+      assertEqualsDouble(r(g) / col(g, "salestax"), 1.2, 1e-12, s"group ${label(g)}")
+
+  test("sales and excise: the aggregate is F137 · (1 − reduction)"):
+    for red <- List(0.0, 0.5, 1.0, -0.2) do
+      assertEqualsDouble(aggregate(reformed(salesReduction(red), SalesAndExciseTax)), model.parametersDouble(AverageSalesTaxShareOfIncome) * (1 - red), 1e-12, s"reduction $red")
+
+  test("sales and excise: no other instrument depends on the reduction (no crowd-out, unlike the VAT)"):
+    val base = model.run(Counterfactual())
+    val cut  = model.run(salesReduction(0.5))
+    for lbl <- base.keySet - SalesAndExciseTax; g <- groups do
+      assertEqualsDouble(cut(lbl)(g).reformedTaxRate, base(lbl)(g).reformedTaxRate, 0.0, s"$lbl, group ${label(g)}")
+
+  test("sales and excise: declares its inputs, so a model without the salestax data or the reduction lever is rejected"):
+    intercept[IllegalArgumentException](model.copy(dataDouble = model.dataDouble - SalesTaxShareOfIncome))
+    intercept[IllegalArgumentException](model.copy(leversDouble = model.leversDouble - SalesAndExciseTaxReduction))
 
   // ---- VAT (column S) ----------------------------------------------------------------------------------------
 

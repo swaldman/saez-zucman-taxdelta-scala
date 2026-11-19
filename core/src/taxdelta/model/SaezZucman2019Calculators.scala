@@ -120,6 +120,24 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       )
     override val requires = Set(EmployerSponsoredHealthPremiumsBecomeHeadTaxAsPayrollTax,PayrollTaxShareOfIncome,EmployerShareOfPrivateHealthPremiums,EmployersHealthInsuranceContributionShareOfIncome)
 
+  // generally, to expand consumption taxes, prefer introducing a VAT.
+  // rescaling sales-and-excise-taxes implies proportionally rescaling all of them,
+  // i.e. if you increase the sales tax by 20%, you also increase tobacco and fuel taxes by the same
+  //
+  // this model also foresees "broad" taxes crowding out corporate and progressive individual income taxes.
+  // that is set up for VAT and a potential flat "national income tax", but not for rescalings of sales
+  // and excise taxes.
+  object SalesAndExciseTaxInstrument extends Instrument.Unified:
+    private def computeTaxRate(
+      uniformlyRescaleSalesAndExciseTaxesFactor : Double,
+      existingSalesAndExciseShareOfIncome       : Double
+    ) : Double =  uniformlyRescaleSalesAndExciseTaxesFactor * existingSalesAndExciseShareOfIncome
+    protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
+      val salesAndExciseTaxReduction = model.orPrefer(counterfactual)(SalesAndExciseTaxReduction)
+      val existingSalesAndExciseShareOfIncome = model.dataDouble(SalesTaxShareOfIncome)( g )
+      computeTaxRate(1-salesAndExciseTaxReduction,existingSalesAndExciseShareOfIncome)
+    override val requires = Set(SalesAndExciseTaxReduction,SalesTaxShareOfIncome)
+
   object ValueAddedTaxInstrument extends Instrument.Unified:
     private def groupSpecificWeightingOfTaxableSales( groupSpecificSalesTaxShareOfIncome : Double, averageSalesTaxShareOfIncome : Double, consumerIncidenceShare : Double) : Double =
       (consumerIncidenceShare * (groupSpecificSalesTaxShareOfIncome / averageSalesTaxShareOfIncome)) + ((1-consumerIncidenceShare) * 1)
