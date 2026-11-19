@@ -646,6 +646,13 @@ class SaezZucman2019Test extends munit.FunSuite:
     intercept[IllegalArgumentException](mainModel.copy(baseline = mainModel.baseline.copy(leversOther = mainModel.baseline.leversOther - IndividualIncomeTaxSchedule)))
     intercept[IllegalArgumentException](mainModel.copy(dataDouble = mainModel.dataDouble - AvgOrdinaryMarginalTaxRate))
 
+  test("income tax: declares the precomputed gains-and-dividends total, so a model without that aggregation is rejected"):
+    intercept[IllegalArgumentException](mainModel.copy(aggregationsDouble = mainModel.aggregationsDouble - TotalGainsAndDividends))
+
+  test("income tax: the gains-and-dividends aggregation is Σ nb · (fikgi + fidiv) over every group, straight from databig"):
+    val expected = groups.map(g => adults(g) * (col(g, "fikgi") + col(g, "fidiv"))).sum
+    assertEquals(mainModel.aggregationsDouble(TotalGainsAndDividends), expected)
+
   test("income tax: runs after the national income tax and VAT, and a model ordering it earlier is rejected"):
     val order = mainModel.instruments.map(_._1)
     assert(order.indexOf(IndividualIncomeTax) > order.indexOf(NationalIncomeTax))

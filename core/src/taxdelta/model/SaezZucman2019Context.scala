@@ -52,6 +52,10 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     WealthExcessCurve -> SaezZucman2019DataBridge.wealthExcessCurves.map(imputeHigherBracketsTopGroupOnly) 
   )
 
+  val aggregationsDouble = Map(
+    TotalGainsAndDividends -> SaezZucman2019DataBridge.totalGainsAndDividends
+  )
+
   val calculators     = new SaezZucman2019Calculators[this.type](this)
   val counterfactuals = new SaezZucman2019Counterfactuals[this.type](this)
 
@@ -95,24 +99,25 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
   )
 
   val mainModel = Model(
-    groups            = SaezZucman2019DataBridge.groups,
-    rebaser           = calculators.Rebaser,
-    parametersBoolean = parametersBoolean,
-    parametersDouble  = parametersDouble,
-    dataDouble        = dataDouble,
-    dataOther         = dataOther,
-    baseline          = baseline,
-    instruments       = List(
-                          EstateTax           -> calculators.EstateTaxInstrument,
-                          HealthInsuranceTax  -> calculators.HealthInsuranceTaxInstrument,
-                          NationalIncomeTax   -> calculators.NationalIncomeTaxInstrument,
-                          PayrollTax          -> calculators.PayrollTaxInstrument,
-                          PropertyTax         -> calculators.PropertyTaxInstrument,
-                          SalesAndExciseTax   -> calculators.SalesAndExciseTaxInstrument,
-                          ValueAddedTax       -> calculators.ValueAddedTaxInstrument,
-                          WealthTax           -> calculators.WealthTaxInstrument,
-                          CorporateTax        -> calculators.CorporateTaxInstrument, // depends upon NationalIncomeTax and ValueAddedTax having been executed previously
-                          IndividualIncomeTax -> calculators.IndividualIncomeTaxInstrument, // depends upon NationalIncomeTax and ValueAddedTax having been executed previously
-                        )
+    groups             = SaezZucman2019DataBridge.groups,
+    rebaser            = calculators.Rebaser,
+    parametersBoolean  = parametersBoolean,
+    parametersDouble   = parametersDouble,
+    dataDouble         = dataDouble,
+    dataOther          = dataOther,
+    aggregationsDouble = aggregationsDouble,
+    baseline           = baseline,
+    instruments        = List(
+                           EstateTax           -> calculators.EstateTaxInstrument,
+                           HealthInsuranceTax  -> calculators.HealthInsuranceTaxInstrument,
+                           NationalIncomeTax   -> calculators.NationalIncomeTaxInstrument,
+                           PayrollTax          -> calculators.PayrollTaxInstrument,
+                           PropertyTax         -> calculators.PropertyTaxInstrument,
+                           SalesAndExciseTax   -> calculators.SalesAndExciseTaxInstrument,
+                           ValueAddedTax       -> calculators.ValueAddedTaxInstrument,
+                           WealthTax           -> calculators.WealthTaxInstrument,
+                           CorporateTax        -> calculators.CorporateTaxInstrument, // depends upon NationalIncomeTax and ValueAddedTax having been executed previously
+                           IndividualIncomeTax -> calculators.IndividualIncomeTaxInstrument, // depends upon NationalIncomeTax and ValueAddedTax having been executed previously
+                         )
   )
 

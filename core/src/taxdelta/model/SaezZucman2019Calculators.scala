@@ -376,7 +376,7 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       val fiscalCapitalGains                                                = model.dataDouble(FiscalCapitalGains)( g )
       val fiscalDividends                                                   = model.dataDouble(FiscalDividends)( g )
       val fiscalIncomeIncludingCapitalGains                                 = model.dataDouble(FiscalIncomeIncludingCapitalGains)( g )
-      val fiscalCapGainsAndDividendsTotal                                   = SaezZucman2019DataBridge.totalGainsAndDividends
+      val fiscalCapGainsAndDividendsTotal                                   = model.aggregationsDouble(TotalGainsAndDividends)
       val incomeExcessCurve                                                 = model.dataOtherAs[ExcessCurve](IncomeExcessCurve)( g )
       val individualIncomeTaxCapitalGainsTaxedAtOrdinaryRate                = model.orPrefer(counterfactual)(IndividualIncomeTaxCapitalGainsTaxedAtOrdinaryRate)
       val individualIncomeTaxDividendsTaxedAtOrdinaryRate                   = model.orPrefer(counterfactual)(IndividualIncomeTaxDividendsTaxedAtOrdinaryRate) // ignored if IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate is true
@@ -434,7 +434,8 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       IndividualIncomeTaxDividendsTaxedAtOrdinaryRate,
       IndividualIncomeTaxIntegratedTaxOnDividendedProfitsAtOrdinaryRate,
       ReplicateWorkbookForeignDoubleCount,
-      IndividualIncomeTaxSchedule
+      IndividualIncomeTaxSchedule,
+      TotalGainsAndDividends
     )
     override val depends  = Set(NationalIncomeTax,ValueAddedTax)
 

@@ -44,6 +44,10 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case IncomeExcessCurve
     case WealthExcessCurve
 
+  // LA means "label of an aggregation precomputed from the data"
+  enum LADouble extends InputLabel:
+    case TotalGainsAndDividends
+
   // LL means "label of a potential policy lever"
   enum LLBoolean extends InputLabel:
     case CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates
@@ -79,16 +83,17 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case ValueAddedTax
     case WealthTax
 
-  export LPBoolean.*, LPDouble.*, LDDouble.*, LDOther.*, LLBoolean.*, LLDouble.*, LLOther.*, LInstrument.*
+  export LPBoolean.*, LPDouble.*, LDDouble.*, LDOther.*, LADouble.*, LLBoolean.*, LLDouble.*, LLOther.*, LInstrument.*
 
-  override type LabelParameterBoolean = LPBoolean
-  override type LabelParameterDouble  = LPDouble
-  override type LabelDataDouble       = LDDouble
-  override type LabelDataOther        = LDOther
-  override type LabelLeverBoolean     = LLBoolean
-  override type LabelLeverDouble      = LLDouble
-  override type LabelLeverOther       = LLOther
-  override type LabelInstrument       = LInstrument
+  override type LabelParameterBoolean  = LPBoolean
+  override type LabelParameterDouble   = LPDouble
+  override type LabelDataDouble        = LDDouble
+  override type LabelDataOther         = LDOther
+  override type LabelAggregationDouble = LADouble
+  override type LabelLeverBoolean      = LLBoolean
+  override type LabelLeverDouble       = LLDouble
+  override type LabelLeverOther        = LLOther
+  override type LabelInstrument        = LInstrument
 
   private def toParameterBoolean( key : String, value : Any ) : Option[Tuple2[LPBoolean,Boolean]] = 
     value match

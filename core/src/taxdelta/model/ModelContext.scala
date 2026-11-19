@@ -16,6 +16,11 @@ abstract class ModelContext:
   type LabelDataBoolean <: InputLabel
   type LabelDataOther   <: InputLabel
 
+  /* Precomputed aggregations of per-group data */
+  type LabelAggregationDouble  <: InputLabel
+  type LabelAggregationBoolean <: InputLabel
+  type LabelAggregationOther   <: InputLabel
+
   /* Lever values the model assumes but which change in counterfactuals */
   type LabelLeverDouble  <: InputLabel
   type LabelLeverBoolean <: InputLabel
@@ -69,26 +74,29 @@ abstract class ModelContext:
   final case class Baseline(
     leversBoolean    : Map[LabelLeverBoolean,Boolean] = Map.empty,
     leversDouble     : Map[LabelLeverDouble,Double]   = Map.empty,
-    leversOther      : Map[LabelLeverOther,Any]  = Map.empty,
+    leversOther      : Map[LabelLeverOther,Any]       = Map.empty,
   ) extends Scenario
 
   final case class Counterfactual(
     leversBoolean    : Map[LabelLeverBoolean,Boolean] = Map.empty,
     leversDouble     : Map[LabelLeverDouble,Double]   = Map.empty,
-    leversOther      : Map[LabelLeverOther,Any]  = Map.empty,
+    leversOther      : Map[LabelLeverOther,Any]       = Map.empty,
   ) extends Scenario
 
   final case class Model(
-    groups            : Groups,
-    parametersDouble  : Map[LabelParameterDouble,Double]                 = Map.empty,
-    parametersBoolean : Map[LabelParameterBoolean,Boolean]               = Map.empty,
-    parametersOther   : Map[LabelParameterOther,Any]                     = Map.empty,
-    dataDouble        : Map[LabelDataDouble,Map[Group,Double]]           = Map.empty,
-    dataBoolean       : Map[LabelDataBoolean,Map[Group,Boolean]]         = Map.empty,
-    dataOther         : Map[LabelDataOther,Map[Group,Any]]               = Map.empty,
-    baseline          : Baseline                                         = Baseline.empty,
-    rebaser           : AverageIncomeRebaser                             = AverageIncomeRebaser.DontRebase,
-    instruments       : List[Tuple2[LabelInstrument,Instrument]]         = List.empty
+    groups              : Groups,
+    parametersBoolean   : Map[LabelParameterBoolean,Boolean]       = Map.empty,
+    parametersDouble    : Map[LabelParameterDouble,Double]         = Map.empty,
+    parametersOther     : Map[LabelParameterOther,Any]             = Map.empty,
+    dataBoolean         : Map[LabelDataBoolean,Map[Group,Boolean]] = Map.empty,
+    dataDouble          : Map[LabelDataDouble,Map[Group,Double]]   = Map.empty,
+    dataOther           : Map[LabelDataOther,Map[Group,Any]]       = Map.empty,
+    aggregationsBoolean : Map[LabelAggregationBoolean,Boolean]     = Map.empty,
+    aggregationsDouble  : Map[LabelAggregationDouble,Double]       = Map.empty,
+    aggregationsOther   : Map[LabelAggregationOther,Any]           = Map.empty,
+    baseline            : Baseline                                 = Baseline.empty,
+    rebaser             : AverageIncomeRebaser                     = AverageIncomeRebaser.DontRebase,
+    instruments         : List[Tuple2[LabelInstrument,Instrument]] = List.empty
   ):
     val rebasedAverageIncome = groups.toSeq.map(g => (g, rebaser(g, this))).toMap
     val rebasedTotalIncome   = rebasedAverageIncome.map( (k,v) => (k, v * k.size) ).toMap
@@ -107,6 +115,9 @@ abstract class ModelContext:
       dataDouble.keySet             ++
       dataBoolean.keySet            ++
       dataOther.keySet              ++
+      aggregationsDouble.keySet     ++
+      aggregationsBoolean.keySet    ++
+      aggregationsOther.keySet      ++
       baseline.leversDouble.keySet  ++
       baseline.leversBoolean.keySet ++
       baseline.leversOther.keySet
@@ -117,6 +128,7 @@ abstract class ModelContext:
 
     def parametersOtherAs[T : ClassTag](lpo: LabelParameterOther) : T = parametersOther(lpo).downcast[T]
     def dataOtherAs[T : ClassTag](lpo: LabelDataOther)(g : Group) : T = dataOther(lpo)(g).downcast[T]
+    def aggregationsOtherAs[T : ClassTag](lao: LabelAggregationOther) : T = aggregationsOther(lao).downcast[T]
     def orPreferAs[T : ClassTag]( counterfactual : Option[Counterfactual] )( llo : LabelLeverOther ) : T = orPrefer(counterfactual)(llo).downcast[T]
 
     private val duplicateInstrumentLabels : List[LabelInstrument] =
