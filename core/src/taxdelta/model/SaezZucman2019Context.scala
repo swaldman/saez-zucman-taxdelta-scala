@@ -1,5 +1,16 @@
 package taxdelta.model
 
+// An reimplementation of Saez and Zucman taxjusticenow.org model, as provided here
+//
+//   https://eml.berkeley.edu/~saez/taxsimulator2.xlsx
+//
+// Inspired by, but includes modeling assumptions and choices independent from
+//
+//   Thomas Piketty, Emmanuel Saez and Stefanie Stantcheva (2014), "Optimal Taxation of Top Labor Incomes: A Tale of Three Elasticities," American Economic Journal: Economic Policy 6(1): 230–271. https://doi.org/10.1257/pol.6.1.230
+//   https://www.aeaweb.org/articles?id=10.1257/pol.6.1.230
+//
+// (It attends to only two of its three elasticities.)
+
 class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) extends SaezZucman2019Labels:
 
   /* Basic parameters of the model */
