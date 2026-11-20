@@ -8,6 +8,7 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case CountPrivateHealthPremiumsAsTax
     case ReplicateWorkbookForeignDoubleCount
 
+  // Note: LongRun- prefixed params are to the experimental behavioral model
   enum LPDouble extends InputLabel:
     case AverageSalesTaxShareOfIncome
     case AverageValueAddedTaxableConsumptionShareOfIncome
@@ -22,6 +23,15 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case EstateTaxCurrentAvoidanceRate
     case EstateTaxCurrentStatutoryTopRate
     case FiscalCapitalGainsTaxableShare // income stats exclude realized gains, but the tax base does in part include them
+    case LongRunAveragePreTaxIncomeGrowth
+    case LongRunBargainingElasticity
+    case LongRunIncentiveElasticity
+    case LongRunImpliedMarginalTaxRateCap
+    case LongRunMarginalTaxRateSmoothingHalfWindow
+    case LongRunMarginalTaxRateSmoothingPasses
+
+  enum LPOther extends InputLabel:
+    case LongRunBargainingWeightFunction // a function Group => Double
 
   // LD means "label of a (per-group) data item"
   enum LDDouble extends InputLabel:
@@ -39,6 +49,8 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case FiscalCapitalGains
     case FiscalDividends
     case FiscalIncomeIncludingCapitalGains
+    case LongRunPretaxIncome1980
+    case LongRunPretaxIncome2018 // basically the same as denom, or our rebased agi, but there are some small differences, so we use this to reproduce the worksheet
 
   enum LDOther extends InputLabel:
     case IncomeExcessCurve
@@ -83,10 +95,11 @@ abstract class SaezZucman2019Labels extends ModelContext:
     case ValueAddedTax
     case WealthTax
 
-  export LPBoolean.*, LPDouble.*, LDDouble.*, LDOther.*, LADouble.*, LLBoolean.*, LLDouble.*, LLOther.*, LInstrument.*
+  export LPBoolean.*, LPDouble.*, LPOther.*, LDDouble.*, LDOther.*, LADouble.*, LLBoolean.*, LLDouble.*, LLOther.*, LInstrument.*
 
   override type LabelParameterBoolean  = LPBoolean
   override type LabelParameterDouble   = LPDouble
+  override type LabelParameterOther    = LPOther
   override type LabelDataDouble        = LDDouble
   override type LabelDataOther         = LDOther
   override type LabelAggregationDouble = LADouble
@@ -127,15 +140,13 @@ abstract class SaezZucman2019Labels extends ModelContext:
           case NonFatal(t) => None
       case _ => None
 
-/*
-  private def toParameterOther( key : String, value : Any ) : Option[Tuple2[LPOther,Other]] =
+  private def toParameterOther( key : String, value : Any ) : Option[Tuple2[LPOther,Any]] =
     try
       Some( Tuple2( LPOther.valueOf(key), value ) )
     catch
       case NonFatal(t) => None
- */
 
   protected def findOverrideParametersBoolean( parameterOverrides : Map[String,Any] ) : Map[LPBoolean,Boolean] = parameterOverrides.map( toParameterBoolean ).flatten.toMap
   protected def findOverrideParametersDouble ( parameterOverrides : Map[String,Any] ) : Map[LPDouble,Double]   = parameterOverrides.map( toParameterDouble ).flatten.toMap
-  //protected def findOverrideParametersOther  ( parameterOverrides : Map[String,Any] ) : Map[LPDouble,Double]   = parameterOverrides.map( toParameterOther ).flatten.toMap
+  protected def findOverrideParametersOther  ( parameterOverrides : Map[String,Any] ) : Map[LPOther,Any]       = parameterOverrides.map( toParameterOther ).flatten.toMap
 

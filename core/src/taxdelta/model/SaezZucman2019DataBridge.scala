@@ -1,6 +1,7 @@
 package taxdelta.model
 
 import taxdelta.data.Sz2019Worksheet_databig
+import taxdelta.data.Sz2019Worksheet_growth
 
 import scala.collection.immutable
 
@@ -38,7 +39,7 @@ object SaezZucman2019DataBridge:
     val rowLabel = rowColValues(g)
     ExcessCurve.Default(DatabigWealthThresholds, Sz2019Worksheet_databig.header.filter(_.startsWith("wealth_")).map(c => Sz2019Worksheet_databig.doubleValue(rowLabel,c)))
 
-  lazy val wealthExcessCurves : Map[Group,ExcessCurve.Default] = groups.toSeq.map( g => (g, wealthExcessCurveForGroup(g)) ).toMap
+  lazy val wealthExcessCurves : Map[Group,ExcessCurve.Default] = groups.toIndexedSeq.map( g => (g, wealthExcessCurveForGroup(g)) ).toMap
 
   private val DatabigIncomeThresholds = IndexedSeq[Double](0, 77_000, 165_000, 315_000, 400_000, 600_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000, 25_000_000, 50_000_000)
 
@@ -49,7 +50,7 @@ object SaezZucman2019DataBridge:
     val rowLabel = rowColValues(g)
     ExcessCurve.Default(DatabigIncomeThresholds, Sz2019Worksheet_databig.header.filter(_.startsWith("taxinc_")).map(c => Sz2019Worksheet_databig.doubleValue(rowLabel,c)))
 
-  lazy val incomeExcessCurves : Map[Group,ExcessCurve.Default] = groups.toSeq.map( g => (g, incomeExcessCurveForGroup(g)) ).toMap
+  lazy val incomeExcessCurves : Map[Group,ExcessCurve.Default] = groups.toIndexedSeq.map( g => (g, incomeExcessCurveForGroup(g)) ).toMap
 
   private def doubleItemForGroup(g : Group, colHeader : String) : Double =
     val rowLabel = rowColValues(g)
@@ -72,21 +73,34 @@ object SaezZucman2019DataBridge:
   private def salesTaxShareOfIncomeForGroup(g : Group)                                 : Double = doubleItemForGroup(g,"salestax")
   private def propertyTaxShareOfIncomeForGroup(g : Group)                              : Double = doubleItemForGroup(g,"proptax")
 
-  lazy val fiscalCapitalGains            : Map[Group,Double] = groups.toSeq.map( g => (g, fiscalCapitalGainsForGroup(g))            ).toMap
-  lazy val fiscalDividends               : Map[Group,Double] = groups.toSeq.map( g => (g, fiscalDividendsForGroup(g))               ).toMap
-  lazy val fiscalIncomeIncludingCapGains : Map[Group,Double] = groups.toSeq.map( g => (g, fiscalIncomeIncludingCapGainsForGroup(g)) ).toMap
-  lazy val nationalIncomeTaxBase         : Map[Group,Double] = groups.toSeq.map( g => (g, nationalIncomeTaxBaseForGroup(g))         ).toMap
-  lazy val numberOfAdults                : Map[Group,Double] = groups.toSeq.map( g => (g, numberOfAdultsForGroup(g))                ).toMap
+  lazy val fiscalCapitalGains            : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, fiscalCapitalGainsForGroup(g))            ).toMap
+  lazy val fiscalDividends               : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, fiscalDividendsForGroup(g))               ).toMap
+  lazy val fiscalIncomeIncludingCapGains : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, fiscalIncomeIncludingCapGainsForGroup(g)) ).toMap
+  lazy val nationalIncomeTaxBase         : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, nationalIncomeTaxBaseForGroup(g))         ).toMap
+  lazy val numberOfAdults                : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, numberOfAdultsForGroup(g))                ).toMap
 
-  lazy val avgOrdinaryMarginalTaxRate                             : Map[Group,Double] = groups.toSeq.map( g => (g, avgOrdinaryMarginalTaxRateForGroup(g))                            ).toMap
-  lazy val avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent  : Map[Group,Double] = groups.toSeq.map( g => (g, avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercentForGroup(g)) ).toMap
-  lazy val corporateTaxShareOfIncome                              : Map[Group,Double] = groups.toSeq.map( g => (g, corporateTaxShareOfIncomeForGroup(g))                             ).toMap
-  lazy val estateTaxShareOfIncome                                 : Map[Group,Double] = groups.toSeq.map( g => (g, estateTaxShareOfIncomeForGroup(g))                                ).toMap
-  lazy val healthTaxShareOfIncome                                 : Map[Group,Double] = groups.toSeq.map( g => (g, healthTaxShareOfIncomeForGroup(g))                                ).toMap
-  lazy val payrollTaxShareOfIncome                                : Map[Group,Double] = groups.toSeq.map( g => (g, payrollTaxShareOfIncomeForGroup(g))                               ).toMap
-  lazy val salesTaxShareOfIncome                                  : Map[Group,Double] = groups.toSeq.map( g => (g, salesTaxShareOfIncomeForGroup(g))                                 ).toMap
-  lazy val effectiveIncomeTaxShareOfIncome                        : Map[Group,Double] = groups.toSeq.map( g => (g, effectiveIncomeTaxShareOfIncomeForGroup(g))                       ).toMap
-  lazy val propertyTaxShareOfIncome                               : Map[Group,Double] = groups.toSeq.map( g => (g, propertyTaxShareOfIncomeForGroup(g))                              ).toMap
+  lazy val avgOrdinaryMarginalTaxRate                             : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, avgOrdinaryMarginalTaxRateForGroup(g))                            ).toMap
+  lazy val avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent  : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercentForGroup(g)) ).toMap
+  lazy val corporateTaxShareOfIncome                              : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, corporateTaxShareOfIncomeForGroup(g))                             ).toMap
+  lazy val estateTaxShareOfIncome                                 : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, estateTaxShareOfIncomeForGroup(g))                                ).toMap
+  lazy val healthTaxShareOfIncome                                 : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, healthTaxShareOfIncomeForGroup(g))                                ).toMap
+  lazy val payrollTaxShareOfIncome                                : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, payrollTaxShareOfIncomeForGroup(g))                               ).toMap
+  lazy val salesTaxShareOfIncome                                  : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, salesTaxShareOfIncomeForGroup(g))                                 ).toMap
+  lazy val effectiveIncomeTaxShareOfIncome                        : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, effectiveIncomeTaxShareOfIncomeForGroup(g))                       ).toMap
+  lazy val propertyTaxShareOfIncome                               : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, propertyTaxShareOfIncomeForGroup(g))                              ).toMap
+
+  object GrowthWorksheet:
+    val rowColValues : Map[Group,String] = groups.toIndexedSeq.zipWithIndex.map((g,i) => Tuple2(g,Sz2019Worksheet_growth.value(i,0))).toMap
+    private def doubleItemForGroup(g : Group, colHeader : String) : Double =
+      val rowLabel = rowColValues(g)
+      Sz2019Worksheet_growth.doubleValue(rowLabel,colHeader)
+    private def pretaxIncome1980ForGroup(g : Group) : Double = doubleItemForGroup(g, "peinc1980")
+    private def pretaxIncome2018ForGroup(g : Group) : Double = doubleItemForGroup(g, "peinc2018")
+
+    lazy val pretaxIncomes1980 : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, pretaxIncome1980ForGroup(g)) ).toMap
+    lazy val pretaxIncomes2018 : Map[Group,Double] = groups.toIndexedSeq.map( g => (g, pretaxIncome2018ForGroup(g)) ).toMap
+
+  end GrowthWorksheet
 
   lazy val totalNumberOfAdults = numberOfAdults.valuesIterator.foldLeft(0d)( _ + _ )
 

@@ -3,7 +3,7 @@ package taxdelta.model
 class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) extends SaezZucman2019Labels:
 
   /* Basic parameters of the model */
-  val defaultParametersBoolean = Map(
+  private lazy val _defaultParametersBoolean = Map(
     CountPrivateHealthPremiumsAsTax -> false,
 
     // for computing "integrated" dividends and retained-earnings,
@@ -13,7 +13,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     // values from the Saez-Zucman values
     ReplicateWorkbookForeignDoubleCount -> true,
   )
-  val defaultParametersDouble = Map(
+  private lazy val _defaultParametersDouble = Map(
     AverageSalesTaxShareOfIncome                        -> 0.04675733843078d, // from calculatorbig, F137: calculated as the denom-weighted avg of per-group sales-tax-share-of-income
     AverageValueAddedTaxableConsumptionShareOfIncome    ->   0.4d,
     CloselyHeldCorpTotalRetainedEarnings                -> 166.6d, // billions
@@ -28,9 +28,14 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     EstateTaxCurrentStatutoryTopRate                    ->   0.4d,
     FiscalCapitalGainsTaxableShare                      -> 0.366d,
   )
+  // we use defs returning private vals so we are overridable
+  // but never generate the maps more than once
+  def defaultParametersBoolean = _defaultParametersBoolean
+  def defaultParametersDouble  = _defaultParametersDouble
+  def defaultParametersOther   = Map.empty[LabelParameterOther,Any] // we don't use these, but subclasses might!
 
   /* Per-group data -- each value is a mapping of Groups to values */
-  val dataDouble = Map(
+  private lazy val _dataDouble = Map(
     AvgOrdinaryMarginalTaxRate                            -> SaezZucman2019DataBridge.avgOrdinaryMarginalTaxRate,
     AvgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent -> SaezZucman2019DataBridge.avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent,
     CorporateTaxShareOfIncome                             -> SaezZucman2019DataBridge.corporateTaxShareOfIncome,
@@ -46,39 +51,46 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     PropertyTaxShareOfIncome                              -> SaezZucman2019DataBridge.propertyTaxShareOfIncome,
     SalesTaxShareOfIncome                                 -> SaezZucman2019DataBridge.salesTaxShareOfIncome,
   )
-  val dataOther = Map(
+  private lazy val _dataOther = Map(
     IncomeExcessCurve -> SaezZucman2019DataBridge.incomeExcessCurves,
 
     // we match the model's imputation of health for high levels not in the data,
     // only for the top 400 group. see core.scala for details
     WealthExcessCurve -> SaezZucman2019DataBridge.wealthExcessCurves.map(imputeHigherBracketsTopGroupOnly) 
   )
+  def dataDouble = _dataDouble
+  def dataOther  = _dataOther
 
   /* Precomputed aggregations of the data */
-  val aggregationsDouble = Map(
+  private lazy val _aggregationsDouble = Map(
     TotalGainsAndDividends -> SaezZucman2019DataBridge.totalGainsAndDividends
   )
+  def aggregationsDouble = _aggregationsDouble
 
   /* The code that computes both the taxes and the income denominator they are defined against */
-  val calculators     = new SaezZucman2019Calculators[this.type](this)
+  lazy val calculators     = new SaezZucman2019Calculators[this.type](this)
 
   /* Preset counterfactuals to which we can apply the model and see changes from the baseline scenario */
-  val counterfactuals = new SaezZucman2019Counterfactuals[this.type](this)
+  lazy val counterfactuals = new SaezZucman2019Counterfactuals[this.type](this)
 
   // manage parameter overrides
   val overrideParametersBoolean = findOverrideParametersBoolean( parameterOverrides )
   val overrideParametersDouble  = findOverrideParametersDouble( parameterOverrides )
-  val unparsedParameterOverrides = parameterOverrides.keySet -- (overrideParametersBoolean.keySet.map(_.toString) ++ overrideParametersDouble.keySet.map(_.toString))
+  val overrideParametersOther   = findOverrideParametersOther( parameterOverrides )
+  val overrideParametersUsed = overrideParametersBoolean.keySet.map(_.toString) ++ overrideParametersDouble.keySet.map(_.toString) ++ overrideParametersOther.keySet.map(_.toString)
+  val unparsedParameterOverrides = parameterOverrides.keySet -- overrideParametersUsed
   require(unparsedParameterOverrides.isEmpty, "The following keys of parameterOverrides were unrecognized, or else their values were not of their expected type: " + unparsedParameterOverrides)
-  val parametersBoolean = defaultParametersBoolean ++ overrideParametersBoolean
-  val parametersDouble  = defaultParametersDouble ++ overrideParametersDouble
+
+  lazy val parametersBoolean = defaultParametersBoolean ++ overrideParametersBoolean
+  lazy val parametersDouble  = defaultParametersDouble ++ overrideParametersDouble
+  lazy val parametersOther   = defaultParametersOther ++ overrideParametersOther
 
   /* Baseline scenario */
 
   // note that we do need to build out baseline scenario after defining the
   // potentially overridden parameters, because our baseline depends upon
   // the final parameterization of the model
-  val baseline = Baseline(
+  lazy val baseline = Baseline(
     leversBoolean = Map(
       CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates                 -> false,
       CorporateTaxDeployStrongerEnforcement                             -> false,
@@ -106,11 +118,12 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
     )
   )
 
-  val mainModel = Model(
+  lazy val mainModel = Model(
     groups             = SaezZucman2019DataBridge.groups,
     rebaser            = calculators.Rebaser,
     parametersBoolean  = parametersBoolean,
     parametersDouble   = parametersDouble,
+    parametersOther    = parametersOther,
     dataDouble         = dataDouble,
     dataOther          = dataOther,
     aggregationsDouble = aggregationsDouble,
@@ -128,4 +141,7 @@ class SaezZucman2019Context( parameterOverrides : Map[String,Any] = Map.empty ) 
                            IndividualIncomeTax -> calculators.IndividualIncomeTaxInstrument, // depends upon NationalIncomeTax and ValueAddedTax having been executed previously
                          )
   )
+
+
+
 

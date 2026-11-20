@@ -43,7 +43,13 @@ abstract class ModelContext:
     object DontRebase extends AverageIncomeRebaser:
       override def apply(g : Group, m : Model) : Double = g.averageIncome
       override def requires : Set[InputLabel] = Set.empty
-  abstract class AverageIncomeRebaser extends Function2[Group,Model,Double], Requirer;
+  abstract class AverageIncomeRebaser extends Function2[Group,Model,Double], Requirer
+
+  /* 
+   * Subclass contexts may consume and so require inputs,
+   * even though we don't.
+   */
+  def contextRequirements : Set[InputLabel] = Set.empty
 
   object Instrument:
     case class Result( baselineTaxRate : Double, reformedTaxRate : Double, deltaTaxRate : Double):
@@ -77,6 +83,8 @@ abstract class ModelContext:
     leversOther      : Map[LabelLeverOther,Any]       = Map.empty,
   ) extends Scenario
 
+  object Counterfactual:
+    val empty = Counterfactual()
   final case class Counterfactual(
     leversBoolean    : Map[LabelLeverBoolean,Boolean] = Map.empty,
     leversDouble     : Map[LabelLeverDouble,Double]   = Map.empty,
@@ -98,16 +106,18 @@ abstract class ModelContext:
     rebaser             : AverageIncomeRebaser                     = AverageIncomeRebaser.DontRebase,
     instruments         : List[Tuple2[LabelInstrument,Instrument]] = List.empty
   ):
-    val rebasedAverageIncome = groups.toSeq.map(g => (g, rebaser(g, this))).toMap
+    val rebasedAverageIncome = groups.toIndexedSeq.map(g => (g, rebaser(g, this))).toMap
     val rebasedTotalIncome   = rebasedAverageIncome.map( (k,v) => (k, v * k.size) ).toMap
 
     def run( counterfactual : Counterfactual ) : Map[LabelInstrument,Map[Group,Instrument.Result]] =
       instruments.foldLeft(Map.empty[LabelInstrument,Map[Group,Instrument.Result]]): (accum, next) =>
         val (label,instrument) = next
-        val results = groups.toSeq.map(g => (g,instrument.run(this,counterfactual)(accum)(g))).toMap
+        val results = groups.toIndexedSeq.map(g => (g,instrument.run(this,counterfactual)(accum)(g))).toMap
         accum + Tuple2(label,results)
 
-    val requires : Set[InputLabel] = rebaser.requires ++ instruments.flatMap( (k,v) => v.requires )
+    def runBaseline() : Map[LabelInstrument,Map[Group,Instrument.Result]] = run(Counterfactual.empty)
+
+    val requires : Set[InputLabel] = rebaser.requires ++ instruments.flatMap( (k,v) => v.requires ) ++ contextRequirements
     val offers   : Set[InputLabel] =
       parametersDouble.keySet       ++
       parametersBoolean.keySet      ++
@@ -122,9 +132,9 @@ abstract class ModelContext:
       baseline.leversBoolean.keySet ++
       baseline.leversOther.keySet
 
-    def orPrefer( counterfactual : Option[Counterfactual] )( lld : LabelLeverDouble )  : Double   = counterfactual.fold( baseline.leversDouble(lld) )( cf => cf.leversDouble.getOrElse(lld,baseline.leversDouble(lld)) )
-    def orPrefer( counterfactual : Option[Counterfactual] )( llb : LabelLeverBoolean ) : Boolean  = counterfactual.fold( baseline.leversBoolean(llb) )( cf => cf.leversBoolean.getOrElse(llb,baseline.leversBoolean(llb)) )
-    def orPrefer( counterfactual : Option[Counterfactual] )( llo : LabelLeverOther )   : Any      = counterfactual.fold( baseline.leversOther(llo) )( cf => cf.leversOther.getOrElse(llo,baseline.leversOther(llo)) )
+    def orPrefer( counterfactual : Option[Counterfactual] )( lld : LabelLeverDouble )  : Double  = counterfactual.fold( baseline.leversDouble(lld) )( cf => cf.leversDouble.getOrElse(lld,baseline.leversDouble(lld)) )
+    def orPrefer( counterfactual : Option[Counterfactual] )( llb : LabelLeverBoolean ) : Boolean = counterfactual.fold( baseline.leversBoolean(llb) )( cf => cf.leversBoolean.getOrElse(llb,baseline.leversBoolean(llb)) )
+    def orPrefer( counterfactual : Option[Counterfactual] )( llo : LabelLeverOther )   : Any     = counterfactual.fold( baseline.leversOther(llo) )( cf => cf.leversOther.getOrElse(llo,baseline.leversOther(llo)) )
 
     def parametersOtherAs[T : ClassTag](lpo: LabelParameterOther) : T = parametersOther(lpo).downcast[T]
     def dataOtherAs[T : ClassTag](lpo: LabelDataOther)(g : Group) : T = dataOther(lpo)(g).downcast[T]

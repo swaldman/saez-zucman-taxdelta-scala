@@ -26,18 +26,15 @@ trait SharedTests extends TestModule.Munit:
 
 /** The pure simulation engine. No IO, no reflection: JS-safe. */
 object core extends Module:
+  import taxdelta.data.*
+  def writeFixture(destPath : os.Path, cn : String, rp : String) = os.write(destPath / (cn +".scala"), FixtureSource.fromCsvResource("taxdelta.data",cn,rp).toString())
   def generateWorksheets = Task:
-    import taxdelta.data.*
-    def write(cn : String, rp : String) = 
-      os.write(Task.dest / (cn +".scala"), FixtureSource.fromCsvResource("taxdelta.data",cn,rp).toString())
-    write("Sz2019Worksheet_databig","fixtures/sz2019/databig.csv")
+    writeFixture(Task.dest, "Sz2019Worksheet_databig","fixtures/sz2019/databig.csv")
+    writeFixture(Task.dest, "Sz2019Worksheet_growth","fixtures/sz2019/growth.csv")
     PathRef(Task.dest)
   /** The workbook's cached outputs, as test oracles only (kept out of the library itself). */
   def generateTestWorksheets = Task:
-    import taxdelta.data.*
-    def write(cn : String, rp : String) =
-      os.write(Task.dest / (cn +".scala"), FixtureSource.fromCsvResource("taxdelta.data",cn,rp).toString())
-    write("Sz2019Worksheet_calculatorbig","fixtures/sz2019/calculatorbig_expected.csv")
+    writeFixture(Task.dest, "Sz2019Worksheet_calculatorbig","fixtures/sz2019/calculatorbig_expected.csv")
     PathRef(Task.dest)
   object jvm extends Shared:
     override def generatedSources = Task( super.generatedSources() :+ generateWorksheets() )

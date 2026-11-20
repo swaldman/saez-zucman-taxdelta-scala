@@ -20,7 +20,7 @@ class SaezZucman2019Test extends munit.FunSuite:
   /** The same model, with private health premiums counted as a tax (interface C16 = "yes"). */
   private val healthShown = SaezZucman2019Context(Map("CountPrivateHealthPremiumsAsTax" -> true))
 
-  private val groups = mainModel.groups.toSeq
+  private val groups = mainModel.groups.toIndexedSeq
 
   private def col(g: Group, name: String): Double = Databig.doubleValue(SaezZucman2019DataBridge.rowColValues(g), name)
   private def label(g: Group): String = SaezZucman2019DataBridge.rowColValues(g).trim
@@ -771,7 +771,7 @@ class SaezZucman2019Test extends munit.FunSuite:
       val ctx = if shown then healthShown else this.ctx
       val cf  = if plan == "current" then ctx.Counterfactual() else ctx.counterfactuals.all(plan)
       val out = ctx.mainModel.run(cf).values
-      val gs  = ctx.mainModel.groups.toSeq
+      val gs  = ctx.mainModel.groups.toIndexedSeq
       val expected = pastedColumn(column)
       val tolerance = stalePasteTolerance.getOrElse(column, RateTolerance)
       for (g, i) <- gs.zipWithIndex do

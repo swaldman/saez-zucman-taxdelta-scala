@@ -29,7 +29,9 @@ final case class Groups( percentileGroups : immutable.SortedSet[PercentileGroup]
     g match
       case pg : PercentileGroup => percentileGroups.contains(pg)
       case tg : TopGroup        => tg == topGroup
-  def toSeq = percentileGroups.toSeq :+ topGroup
+  def toIndexedSeq : IndexedSeq[Group] = percentileGroups.toVector :+ topGroup
+  def toSeq : IndexedSeq[Group] = toIndexedSeq
+  def size  : Int = percentileGroups.size + 1
 
 /*
  *  we only have data up to wealth > $1B, so we make some assumptions
@@ -52,3 +54,7 @@ def imputeHigherBrackets( topGroupOnly : Boolean )( tup : Tuple2[Group,ExcessCur
 
 def imputeHigherBracketsTopGroupOnly( tup : Tuple2[Group,ExcessCurve.Default] ) : Tuple2[Group,ExcessCurve.Default] = imputeHigherBrackets( true )( tup )
 
+def longRunBargainingWeightForGroup(g : Group) : Double =
+  g match
+    case pg : PercentileGroup => math.max(math.min((pg.percentileLowerBound - 89) * 0.1, 1),0)
+    case _  : TopGroup        => 1
