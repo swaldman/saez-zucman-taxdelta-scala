@@ -2,7 +2,7 @@ package taxdelta.model
 
 import taxdelta.util.Numerics
 
-// An reimplementation of Saez and Zucman taxjusticenow.org model, as provided here
+// A reimplementation of the "long-run, behavioral" model from Saez and Zucman taxjusticenow.org model, as provided here
 //
 //   https://eml.berkeley.edu/~saez/taxsimulator2.xlsx
 //
