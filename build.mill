@@ -101,3 +101,15 @@ object webapp extends ScalaJSModule:
     PathRef(Task.dest / "taxsim-demo.html")
   }
 
+  val StagingDir = "/Users/swaldman/development/gitproj/www.mchange.com/tmp/saez-zucman-taxdelta"
+
+  def stage = Task {
+    val siteDir        = site().path
+    val standaloneSite = standalone().path
+    val stagingDir = os.Path(StagingDir)
+
+    os.makeDir.all(stagingDir)
+    os.copy.over(siteDir,stagingDir)
+    os.copy(standaloneSite,stagingDir / "standalone.html", replaceExisting=true)
+  }
+
