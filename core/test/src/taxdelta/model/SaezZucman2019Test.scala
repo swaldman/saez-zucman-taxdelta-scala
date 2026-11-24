@@ -788,3 +788,24 @@ class SaezZucman2019Test extends munit.FunSuite:
     assertEquals(s.thresholds, sandersSchedule.thresholds)
     for (a, e) <- s.rates.zip(sandersSchedule.rates) do assertEqualsDouble(a, e, 1e-15)
     assertEquals(s.rates.length, sandersSchedule.rates.length)
+
+  // ---- Crowd-out uses changes from baseline ------------------------------------------------------------------
+
+  /** The same model, but with a VAT already in place at baseline, as in a country that has one. */
+  private val withExistingVat = mainModel.copy(baseline = ctx.baseline.copy(leversDouble = ctx.baseline.leversDouble.updated(ValueAddedTaxRate, 0.10)))
+
+  test("crowd-out: a VAT that exists at baseline leaves the baseline corporate and income tax rates at their observed values"):
+    val plain = mainModel.runBaseline()
+    val vat   = withExistingVat.runBaseline()
+    assert(groups.exists(g => vat(ValueAddedTax)(g).baselineTaxRate > 0.01), "the baseline VAT should be nonzero")
+    for g <- groups; i <- Seq(CorporateTax, IndividualIncomeTax) do
+      assertEqualsDouble(vat(i)(g).baselineTaxRate, plain(i)(g).baselineTaxRate, 1e-15, s"$i, group ${label(g)}")
+
+  test("crowd-out: raising an existing VAT shrinks corporate and income tax rates by the change in the VAT rate only"):
+    val out = withExistingVat.run(Counterfactual(leversDouble = Map(ValueAddedTaxRate -> 0.15)))
+    for g <- groups do
+      val dVat = out(ValueAddedTax)(g).deltaTaxRate
+      assert(dVat > 0, s"group ${label(g)}")
+      for i <- Seq(CorporateTax, IndividualIncomeTax) do
+        val r = out(i)(g)
+        assertEqualsDouble(r.reformedTaxRate, (1 - dVat) * r.baselineTaxRate, 1e-15, s"$i, group ${label(g)}")

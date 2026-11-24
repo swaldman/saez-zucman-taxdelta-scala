@@ -4,14 +4,20 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
 
   import context.*
 
+  /** The change in another instrument's rate for a group, relative to baseline (zero under the baseline itself).
+   *  Crowd-out factors use changes rather than levels, so broad taxes that already exist at baseline
+   *  (e.g. an existing VAT in the general model) don't shrink the observed rates of other taxes. */
+  private def changeFromBaseline( r : Instrument.Result, counterfactual : Option[Counterfactual] ) : Double =
+    r.taxRateUnder(counterfactual) - r.baselineTaxRate
+
   object Rebaser extends AverageIncomeRebaser:
     override def apply(g : Group, model : Model) = g.averageIncome + (model.parametersDouble(FiscalCapitalGainsTaxableShare) * model.dataDouble(FiscalCapitalGains)(g))
     override def requires : Set[InputLabel] = Set(FiscalCapitalGains,FiscalCapitalGainsTaxableShare)
 
   object CorporateTaxInstrument extends Instrument.Unified:
     private def computeTaxRate(
-      computedNationalIncomeTaxRateForGroup               : Double,
-      computedValueAddedTaxRateForGroup                   : Double,
+      changeInNationalIncomeTaxRateForGroup               : Double,
+      changeInValueAddedTaxRateForGroup                   : Double,
       corporateTaxCurrentDomesticProfits                  : Double,
       corporateTaxCurrentDomesticReceipts                 : Double,
       corporateTaxCurrentForeignReceipts                  : Double,
@@ -24,12 +30,12 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       val potentialTotalReceipts =
         val foreignReceipts = if corporateTaxDeployStrongerEnforcement then corporateTaxForeignReceiptsUnderStrongerEnforcement else corporateTaxCurrentForeignReceipts
         (corporateTaxCurrentDomesticProfits * corporateTaxProposedEffectiveRate) + foreignReceipts
-      val crowdOutFactor = (1 - computedNationalIncomeTaxRateForGroup - computedValueAddedTaxRateForGroup)
+      val crowdOutFactor = (1 - changeInNationalIncomeTaxRateForGroup - changeInValueAddedTaxRateForGroup) // new broad taxes shrink the base; existing ones are already in the data
       val proposalAdjustmentFactor = potentialTotalReceipts / currentTotalReceipts
       crowdOutFactor * proposalAdjustmentFactor * corporateTaxShareOfIncome
     protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
-      val computedNationalIncomeTaxRateForGroup               = prev(NationalIncomeTax)( g ).taxRateUnder(counterfactual)
-      val computedValueAddedTaxRateForGroup                   = prev(ValueAddedTax)( g ).taxRateUnder(counterfactual)
+      val changeInNationalIncomeTaxRateForGroup               = changeFromBaseline( prev(NationalIncomeTax)( g ), counterfactual )
+      val changeInValueAddedTaxRateForGroup                   = changeFromBaseline( prev(ValueAddedTax)( g ), counterfactual )
       val corporateTaxCurrentDomesticProfits                  = model.parametersDouble(CorporateTaxCurrentDomesticProfits)
       val corporateTaxCurrentDomesticReceipts                 = model.parametersDouble(CorporateTaxCurrentDomesticReceipts)
       val corporateTaxCurrentForeignReceipts                  = model.parametersDouble(CorporateTaxCurrentForeignReceipts)
@@ -38,8 +44,8 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       val corporateTaxProposedEffectiveRate                   = model.orPrefer( counterfactual )(CorporateTaxProposedEffectiveRate)
       val corporateTaxShareOfIncome                           = model.dataDouble(CorporateTaxShareOfIncome)( g )
       computeTaxRate(
-        computedNationalIncomeTaxRateForGroup,
-        computedValueAddedTaxRateForGroup,
+        changeInNationalIncomeTaxRateForGroup,
+        changeInValueAddedTaxRateForGroup,
         corporateTaxCurrentDomesticProfits,
         corporateTaxCurrentDomesticReceipts,
         corporateTaxCurrentForeignReceipts,
@@ -179,8 +185,8 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent             : Double,
       closelyHeldCorpTaxRetainedEarningsAtOrdinaryRates                 : Boolean,
       closelyHeldCorpTotalRetainedEarningsInDollars                     : Double,
-      computedNationalIncomeTaxRateForGroup                             : Double,
-      computedValueAddedTaxRateForGroup                                 : Double,
+      changeInNationalIncomeTaxRateForGroup                             : Double,
+      changeInValueAddedTaxRateForGroup                                 : Double,
       corporateTaxProposedEffectiveRate                                 : Double,
       corporateTaxCurrentDomesticProfits                                : Double,
       corporateTaxCurrentDomesticReceipts                               : Double,
@@ -354,7 +360,7 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
 
       val correctedChange = naiveChangeAtOrdinaryRates + additionDueToCapGainsPreference + additionDueToDividendTreatment + additionDueToRetainedEarningsOfCloselyHeldCorps
       val correctedChangeAsShareOfIncome = correctedChange / rebasedAverageIncomeForGroup
-      val crowdOutFactor = (1 - computedNationalIncomeTaxRateForGroup - computedValueAddedTaxRateForGroup)
+      val crowdOutFactor = (1 - changeInNationalIncomeTaxRateForGroup - changeInValueAddedTaxRateForGroup) // new broad taxes shrink the base; existing ones are already in the data
       crowdOutFactor * math.max(effectiveIncomeTaxShareOfIncome + correctedChangeAsShareOfIncome, 0d)
 
     protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double =
@@ -363,8 +369,8 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
       val avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent             = model.dataDouble(AvgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent)( g )
       val closelyHeldCorpTaxRetainedEarningsAtOrdinaryRates                 = model.orPrefer(counterfactual)(CloselyHeldCorpTaxRetainedEarningsAtOrdinaryRates)
       val closelyHeldCorpTotalRetainedEarnings                              = model.parametersDouble(CloselyHeldCorpTotalRetainedEarnings)
-      val computedNationalIncomeTaxRateForGroup                             = prev(NationalIncomeTax)( g ).taxRateUnder(counterfactual)
-      val computedValueAddedTaxRateForGroup                                 = prev(ValueAddedTax)( g ).taxRateUnder(counterfactual)
+      val changeInNationalIncomeTaxRateForGroup                             = changeFromBaseline( prev(NationalIncomeTax)( g ), counterfactual )
+      val changeInValueAddedTaxRateForGroup                                 = changeFromBaseline( prev(ValueAddedTax)( g ), counterfactual )
       val corporateTaxProposedEffectiveRate                                 = model.orPrefer(counterfactual)(CorporateTaxProposedEffectiveRate)
       val corporateTaxCurrentDomesticProfits                                = model.parametersDouble(CorporateTaxCurrentDomesticProfits)
       val corporateTaxCurrentDomesticReceipts                               = model.parametersDouble(CorporateTaxCurrentDomesticReceipts)
@@ -390,8 +396,8 @@ class SaezZucman2019Calculators[C <: SaezZucman2019Context & Singleton](val cont
         avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent             = avgPortionOfOrdinaryMarginalTaxRateAboveTwentyPercent,
         closelyHeldCorpTaxRetainedEarningsAtOrdinaryRates                 = closelyHeldCorpTaxRetainedEarningsAtOrdinaryRates,
         closelyHeldCorpTotalRetainedEarningsInDollars                     = closelyHeldCorpTotalRetainedEarnings * 1_000_000_000,
-        computedNationalIncomeTaxRateForGroup                             = computedNationalIncomeTaxRateForGroup,
-        computedValueAddedTaxRateForGroup                                 = computedValueAddedTaxRateForGroup,
+        changeInNationalIncomeTaxRateForGroup                             = changeInNationalIncomeTaxRateForGroup,
+        changeInValueAddedTaxRateForGroup                                 = changeInValueAddedTaxRateForGroup,
         corporateTaxProposedEffectiveRate                                 = corporateTaxProposedEffectiveRate,
         corporateTaxCurrentDomesticProfits                                = corporateTaxCurrentDomesticProfits,
         corporateTaxCurrentDomesticReceipts                               = corporateTaxCurrentDomesticReceipts,

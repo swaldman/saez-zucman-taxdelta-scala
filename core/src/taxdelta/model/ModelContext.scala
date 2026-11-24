@@ -52,8 +52,14 @@ abstract class ModelContext:
   def contextRequirements : Set[InputLabel] = Set.empty
 
   object Instrument:
-    case class Result( baselineTaxRate : Double, reformedTaxRate : Double, deltaTaxRate : Double):
-      def taxRateUnder( counterfactual : Option[Counterfactual] ) : Double = counterfactual.fold(baselineTaxRate)(_ => reformedTaxRate)
+    case class Result( baselineTaxRate : Double, reformedTaxRate : Double)(val runAgainst : Counterfactual):
+      val deltaTaxRate : Double = reformedTaxRate - baselineTaxRate
+      def taxRateUnder( counterfactual : Option[Counterfactual] ) : Double = // a convenience for use within API where we have either the relevant counterfactual or None
+        require(
+          counterfactual.fold(true)( _ == runAgainst ),
+          "We can only compute the tax rate under no counterfactual (baseline) or the counterfactual we actually ran against. Requested ${counterfactual.get}, runAgainst ${runAgainst}."
+        )
+        counterfactual.fold(baselineTaxRate)(_ => reformedTaxRate)
     trait Unified extends Instrument:
       protected def taxRate( model : Model, counterfactual : Option[Counterfactual] )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double
       def baselineTaxRate( model : Model )(prev : Map[LabelInstrument,Map[Group,Instrument.Result]])(g : Group) : Double = taxRate(model, None)(prev)(g)
@@ -66,8 +72,7 @@ abstract class ModelContext:
     def run( model : Model, counterfactual : Counterfactual )( prev : Map[LabelInstrument,Map[Group,Instrument.Result]] )(g : Group) : Instrument.Result =
       val b = baselineTaxRate(model)(prev)(g)
       val r = reformedTaxRate(model,counterfactual)(prev)(g)
-      val d = r - b
-      Instrument.Result(b,r,d)
+      Instrument.Result(b,r)(counterfactual)
 
   sealed trait Scenario:
     def leversBoolean : Map[LabelLeverBoolean,Boolean]
