@@ -5,6 +5,8 @@ import mill.*
 import mill.scalalib.*
 import mill.scalajslib.*
 
+import taxdelta.data.*
+
 object Versions:
   val scala   = "3.3.7"
   val scalaJS = "1.20.1"
@@ -24,10 +26,10 @@ trait SharedJS extends Shared with ScalaJSModule:
 trait SharedTests extends TestModule.Munit:
   def mvnDeps = Seq(mvn"org.scalameta::munit::${Versions.munit}")
 
+def writeFixture(destPath : os.Path, cn : String, rp : String) = os.write(destPath / (cn +".scala"), FixtureSource.fromCsvResource("taxdelta.data",cn,rp).toString())
+
 /** The pure simulation engine. No IO, no reflection: JS-safe. */
 object core extends Module:
-  import taxdelta.data.*
-  def writeFixture(destPath : os.Path, cn : String, rp : String) = os.write(destPath / (cn +".scala"), FixtureSource.fromCsvResource("taxdelta.data",cn,rp).toString())
   def generateWorksheets = Task:
     writeFixture(Task.dest, "Sz2019Worksheet_databig","fixtures/sz2019/databig.csv")
     writeFixture(Task.dest, "Sz2019Worksheet_growth","fixtures/sz2019/growth.csv")
@@ -45,6 +47,15 @@ object core extends Module:
     object test extends ScalaJSTests with SharedTests:
       override def generatedSources = Task( super.generatedSources() :+ generateTestWorksheets() )
 
+/** The pure simulation engine. No IO, no reflection: JS-safe. */
+object general extends Module:
+  object jvm extends Shared:
+    override def moduleDeps = Seq(core.jvm)
+    object test extends ScalaTests with SharedTests
+  object js extends SharedJS:
+    override def moduleDeps = Seq(core.js)
+    object test extends ScalaJSTests with SharedTests
+
 /** Demo website for the reworked model: Scala.js + Laminar, static files in `webapp/static`.
  *  A port of the UI in saez-zucman-taxsim-scala, driving `core` through its model contexts.
  *  `./mill webapp.site` assembles the site (optimized JS) in out/webapp/site.dest;
@@ -61,8 +72,8 @@ object webapp extends ScalaJSModule:
 
   /** Display-only data from the workbook (historical tax rates), kept out of core. */
   def generateDisplayWorksheets = Task:
-    core.writeFixture(Task.dest, "Sz2019Worksheet_history", "fixtures/sz2019/history.csv")
-    core.writeFixture(Task.dest, "Sz2019Worksheet_datahist", "fixtures/sz2019/datahist.csv")
+    writeFixture(Task.dest, "Sz2019Worksheet_history", "fixtures/sz2019/history.csv")
+    writeFixture(Task.dest, "Sz2019Worksheet_datahist", "fixtures/sz2019/datahist.csv")
     PathRef(Task.dest)
   override def generatedSources = Task( super.generatedSources() :+ generateDisplayWorksheets() )
 
