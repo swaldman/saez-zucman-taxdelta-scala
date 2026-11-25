@@ -1,5 +1,20 @@
 package taxdelta.model
 
+object Schedule:
+  val empty: Schedule = Schedule(IndexedSeq(0.0), IndexedSeq(0.0))
+  def flat(rate: Double): Schedule = Schedule(IndexedSeq(0.0), IndexedSeq(rate))
+  def fromUpperBoundedBrackets(untilThresholds : IndexedSeq[Double], rates : IndexedSeq[Double]) =
+    require(
+      rates.size == untilThresholds.size + 1,
+      s"We expect upper bounds paired with rates, plus a final rate with no upper bound, so rates.size (${rates.size}) should be untilThresholds.size + 1 (${untilThresholds.size + 1})."
+    )
+    Schedule( 0d +: untilThresholds, rates )
+  def fromLowerBoundedBrackets(fromThresholds : IndexedSeq[Double], rates : IndexedSeq[Double]) =
+    require(
+      rates.size == fromThresholds.size,
+      s"We expect lower bounds paired with rates, plus a final rate with no upper bound, so rates.size (${rates.size}) should be fromThresholds.size (${fromThresholds.size}), and values before the earliest rate are presumed untaxed."
+    )
+    Schedule( fromThresholds, rates )
 /** A piecewise-linear marginal-rate schedule: `rates(k)` applies to the part of the base above
  *  `thresholds(k)` (and below `thresholds(k+1)`). Thresholds are strictly increasing. */
 final case class Schedule(thresholds: IndexedSeq[Double], rates: IndexedSeq[Double]):
@@ -45,7 +60,3 @@ final case class Schedule(thresholds: IndexedSeq[Double], rates: IndexedSeq[Doub
   /** Adds a fixed surcharge to every bracket (`first` for the first bracket, `others` above). */
   def plusSurcharge(first: Double, others: Double): Schedule =
     copy(rates = rates.zipWithIndex.map((r, k) => r + (if k == 0 then first else others)))
-
-object Schedule:
-  val empty: Schedule = Schedule(IndexedSeq(0.0), IndexedSeq(0.0))
-  def flat(rate: Double): Schedule = Schedule(IndexedSeq(0.0), IndexedSeq(rate))
