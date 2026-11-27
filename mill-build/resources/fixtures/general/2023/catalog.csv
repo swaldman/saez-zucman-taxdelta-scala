@@ -1,0 +1,177 @@
+iso,countryName,quality,groups,currentIncomeTax,incomeTaxSchedule,calibratedIncomeTaxBase,individualIncomeTax,missing
+AE,United Arab Emirates,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+AF,Afghanistan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+AL,Albania,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+AM,Armenia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+AO,Angola,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+AR,Argentina,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+AT,Austria,Credible,yes,yes,yes,yes,yes,
+AU,Australia,Credible,yes,yes,yes,yes,yes,
+AZ,Azerbaijan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BA,Bosnia and Herzegovina,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BB,Barbados,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BD,Bangladesh,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BE,Belgium,Credible,yes,yes,yes,yes,yes,
+BF,Burkina Faso,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BG,Bulgaria,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BH,Bahrain,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BI,Burundi,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BJ,Benin,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BN,Brunei Darussalam,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BO,Bolivia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BR,Brazil,Credible,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BT,Bhutan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BW,Botswana,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BY,Belarus,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+BZ,Belize,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+CA,Canada,Credible,yes,yes,yes,yes,yes,
+CD,DR Congo,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+CF,Central African Republic,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+CG,Congo,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+CH,Switzerland,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+CI,Cote d'Ivoire,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+CL,Chile,Modeled,yes,yes,yes,yes,yes,
+CM,Cameroon,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+CN,China,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+CO,Colombia,Credible,yes,yes,yes,yes,yes,
+CR,Costa Rica,Modeled,yes,yes,yes,yes,yes,
+CU,Cuba,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+CV,Cabo Verde,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+CY,Cyprus,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+CZ,Czech Republic,Modeled,yes,yes,yes,yes,yes,
+DE,Germany,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+DJ,Djibouti,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+DK,Denmark,Credible,yes,yes,yes,yes,yes,
+DO,Dominican Republic,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+DZ,Algeria,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+EC,Ecuador,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+EE,Estonia,Credible,yes,yes,yes,yes,yes,
+EG,Egypt,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+ER,Eritrea,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+ES,Spain,Modeled,yes,yes,yes,yes,yes,
+ET,Ethiopia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+FI,Finland,Modeled,yes,yes,yes,yes,yes,
+FJ,Fiji,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+FR,France,Credible,yes,yes,yes,yes,yes,
+GA,Gabon,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+GB,United Kingdom,Credible,yes,yes,yes,yes,yes,
+GE,Georgia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+GH,Ghana,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+GM,Gambia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+GN,Guinea,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+GQ,Equatorial Guinea,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+GR,Greece,Credible,yes,yes,yes,yes,yes,
+GT,Guatemala,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+GW,Guinea-Bissau,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+GY,Guyana,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+HK,Hong Kong,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+HN,Honduras,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+HR,Croatia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+HT,Haiti,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+HU,Hungary,Modeled,yes,yes,yes,yes,yes,
+ID,Indonesia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+IE,Ireland,Modeled,yes,yes,yes,yes,yes,
+IL,Israel,Modeled,yes,yes,yes,yes,yes,
+IN,India,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+IQ,Iraq,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+IR,Iran,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+IS,Iceland,Modeled,yes,yes,yes,yes,yes,
+IT,Italy,Credible,yes,yes,yes,yes,yes,
+JM,Jamaica,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+JO,Jordan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+JP,Japan,Modeled,yes,yes,yes,yes,yes,
+KE,Kenya,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+KG,Kyrgyzstan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+KH,Cambodia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+KM,Comoros,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+KR,Korea,Modeled,yes,yes,yes,yes,yes,
+KS,Kosovo,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+KW,Kuwait,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+KZ,Kazakhstan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+LA,Lao PDR,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+LB,Lebanon,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+LK,Sri Lanka,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+LR,Liberia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+LS,Lesotho,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+LT,Lithuania,Modeled,yes,yes,yes,yes,yes,
+LU,Luxembourg,Modeled,yes,yes,yes,yes,yes,
+LV,Latvia,Modeled,yes,yes,yes,yes,yes,
+LY,Libya,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MA,Morocco,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MD,Moldova,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+ME,Montenegro,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MG,Madagascar,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MK,North Macedonia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+ML,Mali,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MM,Myanmar,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MN,Mongolia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MR,Mauritania,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MT,Malta,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MU,Mauritius,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MV,Maldives,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MW,Malawi,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MX,Mexico,Modeled,yes,yes,yes,yes,yes,
+MY,Malaysia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+MZ,Mozambique,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+NA,Namibia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+NE,Niger,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+NG,Nigeria,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+NI,Nicaragua,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+NL,Netherlands,Modeled,yes,yes,yes,yes,yes,
+NO,Norway,Credible,yes,yes,yes,yes,yes,
+NP,Nepal,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+NZ,New Zealand,Credible,yes,yes,yes,yes,yes,
+OM,Oman,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+PA,Panama,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+PE,Peru,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+PG,Papua New Guinea,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+PH,Philippines,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+PK,Pakistan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+PL,Poland,Modeled,yes,yes,yes,yes,yes,
+PS,Palestine,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+PT,Portugal,Credible,yes,yes,yes,yes,yes,
+PY,Paraguay,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+QA,Qatar,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+RO,Romania,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+RS,Serbia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+RU,Russian Federation,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+RW,Rwanda,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+SA,Saudi Arabia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+SC,Seychelles,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+SD,Sudan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+SE,Sweden,Modeled,yes,yes,yes,yes,yes,
+SG,Singapore,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+SI,Slovenia,Credible,yes,yes,yes,yes,yes,
+SK,Slovakia,Modeled,yes,yes,yes,yes,yes,
+SL,Sierra Leone,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+SN,Senegal,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+SO,Somalia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+SR,Suriname,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+SS,South Sudan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+ST,Sao Tome and Principe,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+SV,El Salvador,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+SY,Syrian Arab Republic,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+SZ,Swaziland,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+TD,Chad,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+TG,Togo,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+TH,Thailand,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+TJ,Tajikistan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+TL,Timor-Leste,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+TM,Turkmenistan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+TN,Tunisia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+TO,Tonga,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+TR,Turkey,Modeled,yes,yes,yes,yes,yes,
+TT,Trinidad and Tobago,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+TW,Taiwan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+TZ,Tanzania,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+UA,Ukraine,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+UG,Uganda,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+US,United States,Credible,yes,yes,yes,yes,yes,
+UY,Uruguay,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+UZ,Uzbekistan,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+VE,Venezuela,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+VN,Viet Nam,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+YE,Yemen,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+ZA,South Africa,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+ZM,Zambia,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base
+ZW,Zimbabwe,Modeled,yes,yes,no,no,no,an income tax schedule; a calibrated income tax base

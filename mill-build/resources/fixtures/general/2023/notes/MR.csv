@@ -1,0 +1,11 @@
+id,generator,topic,note
+catalog/1,catalog,coverage,"Not yet modelled: the individual income tax instrument needs an income tax schedule, a calibrated income tax base, which this country-year lacks. See the other notes for why. Income tax schedules come from the OECD Tax Database, which covers OECD members only; other countries need hand-curated schedules."
+gf-groups/1,gf-groups,groups,"Groups are the 127 g-percentiles of Gethin & Fisher-Post (2026), ""Government Redistribution and Global Poverty Reduction"", data version 2026-09-22: all individuals, with income split equally within couples (WID's 999j unit), ranked by pretax national income. Sizes and average incomes are theirs."
+gf-groups/2,gf-groups,currency,"Amounts are in national currency at 2023 prices: Gethin-Fisher values (PPP USD of 2024) times defl (0.968385) times xppp_us (11.2427). Their ReadMe gives the PPP base year as 2023, but xppp_us matches WID's 2024 PPP, so we take the base to be 2024."
+gf-groups/3,gf-groups,currency,Check: total pretax income from Gethin-Fisher is 0.989 times WID's national income for 2023.
+gf-groups/4,gf-groups,groups,"Lower thresholds come from WID's tptinc999j for 2023, made nominal and scaled by each group's ratio of Gethin-Fisher's to WID's average income (122 of 126 groups; 4 unscaled where that ratio was unavailable or outside 0.5-2). The bottom group's threshold is set to 0, since Gethin-Fisher's averages don't follow WID's negative incomes."
+gf-groups/5,gf-groups,groups,"The top group (P99.999-100) has only 50 people, so its average income rests on very few individuals."
+gf-groups/6,gf-groups,income-tax-current,"The current income tax rate by group (effectiveIncomeTaxShareOfIncome) is Gethin-Fisher's personal income tax (tax_dir_pit, their central estimate) over pretax income. Their lower and upper bounds aren't used."
+gf-groups/7,gf-groups,income-tax-current,5 groups have non-positive average income; their rate is set to 0.
+gf-groups/8,gf-groups,quality,"Data quality Modeled, from WID's data-quality score of 1 (out of 5) on the income thresholds: 4 or 5 is Credible, lower is Modeled."
+iit-base/1,iit-base,income-tax-base,No calibrated income tax base: there is no income tax schedule for this country-year.

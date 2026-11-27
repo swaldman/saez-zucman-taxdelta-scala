@@ -47,13 +47,90 @@ object core extends Module:
     object test extends ScalaJSTests with SharedTests:
       override def generatedSources = Task( super.generatedSources() :+ generateTestWorksheets() )
 
-/** The pure simulation engine. No IO, no reflection: JS-safe. */
+/** Scala sources for the general model's fixtures (mill-build/resources/fixtures/general/<year>/), as written by
+ *  the scripts in fixture-generators/ of the private sibling repository saez-zucman-taxdelta-data-sources.
+ *  Per year, one object with the cross-country tables (`Fixtures<year>`), and one per country the catalog
+ *  marks as supported (`Fixtures<year>_<ISO2>`), all in package taxdelta.general.fixtures, plus `AllFixtures`
+ *  listing the years. The types they implement (`YearFixtures`, `CountryFixtures`, `Table`) live in the general
+ *  module. */
+object GeneralFixtureSources:
+  val Package = "taxdelta.general.fixtures"
+
+  /** A Scala string literal, escaped (fixture text includes quotes, non-ASCII letters, and so on). */
+  def lit( s : String ) : String =
+    val sb = new StringBuilder("\"")
+    s.foreach:
+      case '"'  => sb ++= "\\\""
+      case '\\' => sb ++= "\\\\"
+      case '\n' => sb ++= "\\n"
+      case '\r' => sb ++= "\\r"
+      case '\t' => sb ++= "\\t"
+      case ch if ch < ' ' => sb ++= f"\\u${ch.toInt}%04x"
+      case ch   => sb += ch
+    sb += '"'
+    sb.toString
+
+  def table( csv : Csv ) : String =
+    def row( r : IndexedSeq[String] ) = r.map(lit).mkString("IndexedSeq(", ", ", ")")
+    s"""Table(\n    ${row(csv.header)},\n    IndexedSeq(\n${csv.rows.map("      " + row(_)).mkString(",\n")}\n    )\n  )"""
+
+  def read( p : os.Path ) : Csv = Csv.parse(os.read(p))
+
+  def write( fixtureRoot : os.Path, dest : os.Path ) : Unit =
+    val years = os.list(fixtureRoot).filter(os.isDir).map(_.last).filter(_.forall(_.isDigit)).sorted
+    for y <- years do
+      val dir = fixtureRoot / y
+      val catalog = read(dir / "catalog.csv")
+      val supported = catalog.rows.indices.filter(i => catalog.value(i, catalog.header.indexOf("individualIncomeTax")) == "yes")
+                                          .map(i => catalog.value(i, 0))
+      for iso <- supported do
+        os.write(dest / s"Fixtures${y}_$iso.scala",
+          s"""|package $Package
+              |
+              |import taxdelta.general.{CountryFixtures, Table}
+              |
+              |object Fixtures${y}_$iso extends CountryFixtures:
+              |  val iso = ${lit(iso)}
+              |  lazy val groups : Table = ${table(read(dir / "groups" / s"$iso.csv"))}
+              |  lazy val incomeTaxSchedule : Table = ${table(read(dir / "oecd" / "pit" / s"$iso.csv"))}
+              |  lazy val notes : Table = ${table(read(dir / "notes" / s"$iso.csv"))}
+              |""".stripMargin)
+      os.write(dest / s"Fixtures$y.scala",
+        s"""|package $Package
+            |
+            |import taxdelta.general.{CountryFixtures, Table, YearFixtures}
+            |
+            |object Fixtures$y extends YearFixtures:
+            |  val year = $y
+            |  lazy val countries : Table = ${table(read(dir / "countries.csv"))}
+            |  lazy val catalog : Table = ${table(catalog)}
+            |  lazy val individualIncomeTaxBase : Table = ${table(read(dir / "individual-income-tax-base.csv"))}
+            |  lazy val byIso : Map[String, CountryFixtures] = Map(
+            |${supported.map(iso => s"    ${lit(iso)} -> Fixtures${y}_$iso").mkString(",\n")}
+            |  )
+            |""".stripMargin)
+    os.write(dest / "AllFixtures.scala",
+      s"""|package $Package
+          |
+          |import taxdelta.general.YearFixtures
+          |
+          |object AllFixtures:
+          |  lazy val years : IndexedSeq[YearFixtures] = IndexedSeq(${years.map(y => s"Fixtures$y").mkString(", ")})
+          |""".stripMargin)
+
+/** The general (multi-country) model, built on core. Its data are generated from fixtures. */
 object general extends Module:
+  def fixtureRoot = Task.Source(moduleDir / os.up / "mill-build" / "resources" / "fixtures" / "general")
+  def generateFixtures = Task:
+    GeneralFixtureSources.write(fixtureRoot().path, Task.dest)
+    PathRef(Task.dest)
   object jvm extends Shared:
     override def moduleDeps = Seq(core.jvm)
+    override def generatedSources = Task( super.generatedSources() :+ generateFixtures() )
     object test extends ScalaTests with SharedTests
   object js extends SharedJS:
     override def moduleDeps = Seq(core.js)
+    override def generatedSources = Task( super.generatedSources() :+ generateFixtures() )
     object test extends ScalaJSTests with SharedTests
 
 /** Demo website for the reworked model: Scala.js + Laminar, static files in `webapp/static`.
